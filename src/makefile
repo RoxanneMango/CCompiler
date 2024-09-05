@@ -1,0 +1,36 @@
+.PHONY: all debug clean build build-dir bin-dir
+
+CC = gcc
+CFLAGS = -Wall
+
+C_OBJECTS = preprocessor.o string_utils.o
+EXEC = preprocessor
+
+INCLUDE = ../include
+LIB = ../lib
+BUILD = ../build
+BIN = ../bin
+
+all: build-dir bin-dir build
+	@echo Running ... $(EXEC)
+	@$(BIN)/$(EXEC)
+
+build: $(C_OBJECTS)
+	@echo [+] Linking ...
+	@cd $(BUILD) && $(CC) -o $(BIN)/$(EXEC) $(C_OBJECTS) $(CFLAGS) $(LIBS)
+
+$(C_OBJECTS): %.o: %.c
+	@echo [+] Compiling ... $<
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $(BUILD)/$@
+
+debug: CFLAGS += -DDEBUG
+debug: all
+
+build-dir:
+	@mkdir -p $(BUILD)
+bin-dir:
+	@mkdir -p $(BIN)
+
+clean:
+	@echo [-] Cleaning ...
+	@rm $(BUILD)/*
