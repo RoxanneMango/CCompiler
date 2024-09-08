@@ -123,7 +123,6 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 	_StringNode * node = list->head;
 	bool newLine = true;
 
-
 	if(prettyPrint)
 	{
 		while(node)

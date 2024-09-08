@@ -3,7 +3,7 @@
 CC = gcc
 CFLAGS = -Wall
 
-C_OBJECTS = preprocessor.o string_utils.o
+C_OBJECTS = preprocessor.o string_utils.o symbol_table.o
 EXEC = preprocessor
 
 INCLUDE = ../include
