@@ -1,3 +1,7 @@
+#ifndef bla
+#define bla
+#endif
+
 #include <stdlib.h>	// standard memory operations, etc
 #include <stdio.h>  // standard IO
 #include <string.h>	// string manipulations
@@ -621,7 +625,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 	char * previousDirective = NULL;
 	int _LookingForEndif = 0;
 	int _ElseEncountered = 0;
-	
+	int _IfEncountered = 0;
 	
 	// initialize the #if statement stack to push and pop to
 	symbolTable.ifStack = malloc(sizeof(_Symbol_Table));
@@ -654,7 +658,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 			// parse the preprocessor directive line
 			bool isValid = false;
 			while(isWhiteSpace(*line)) line++; // trim whitespaces
-			
+
 			for(int i = 0; i < _reservedDirectivesNum; i++)
 			{
 				char * ppd = strstr(line, _ReservedDirectives[i]);
@@ -673,9 +677,11 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 					if(name == _ReservedDirectives[_Ifndef_Token])
 					{
 						_LookingForEndif++;
-						
+						_IfEncountered = true;
+						_ElseEncountered = false;
+
 						printf("ifndef token!\n");
-						ifStack->addNode(ifStack, name, value);
+						ifStack->addNode(ifStack, name, value, node);
 						
 						// look through symbol table to see if symbol has been defined already
 						if(!symbolTable.find(&symbolTable, name, value))
@@ -691,7 +697,10 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 					else if(name == _ReservedDirectives[_Ifdef_Token])
 					{
 						_LookingForEndif++;
-						ifStack->addNode(ifStack, name, value);
+						_IfEncountered = true;
+						_ElseEncountered = false;
+						
+						ifStack->addNode(ifStack, name, value, node);
 						
 						printf("ifdef token!\n");
 						// look through symbol table to see if symbol has been defined already
@@ -708,62 +717,93 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 					else if(name == _ReservedDirectives[_If_Token])
 					{
 						_LookingForEndif++;
+						_IfEncountered = true;
+						_ElseEncountered = false;
+						
 						printf("if token!\n");
 						
-						ifStack->addNode(ifStack, name, value);
+						ifStack->addNode(ifStack, name, value, node);
 						
 					}
 					else if(name == _ReservedDirectives[_Define_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					else if(name == _ReservedDirectives[_Endif_Token])
 					{
 						if(_LookingForEndif <= 0)
 						{
-							DEBUG_PRINT("error: #endif without #if\n");
+							fprintf(stderr, "\e[31merror\e[0m: #endif without #if\n");
 							return -1;
 						}
-						_LookingForEndif--;
+						_IfEncountered = false;
 						_ElseEncountered = false;
+
+						_LookingForEndif--;
 						printf("endif token!\n");
 
-						ifStack->addNode(ifStack, name, value);
+						ifStack->addNode(ifStack, name, value, node);
 					}
 					else if(name == _ReservedDirectives[_Pragma_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					// more token definitions
 					else if(name == _ReservedDirectives[_Undef_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					else if(name == _ReservedDirectives[_Defined_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					// conditional
 					else if(name == _ReservedDirectives[_Elif_Token])
 					{
-						if(_LookingForEndif <= 0)
+						if(!_IfEncountered || (_LookingForEndif <= 0))
 						{
-							DEBUG_PRINT("error: #elif without #if\n");
+							fprintf(stderr, "\e[31merror\e[0m: #elif without #if\n");
 							return -1;
 						}
+						_IfEncountered = true;
+						_ElseEncountered = false;
 					}
 					else if(name == _ReservedDirectives[_Else_Token])
 					{
-						if( (_LookingForEndif) || (_ElseEncountered) )
+						if( (_IfEncountered) || (_LookingForEndif) || (_ElseEncountered) )
 						{
-							DEBUG_PRINT("error: #else without #if\n");
+							fprintf(stderr, "\e[31merror\e[0m: #else without #if or #elif\n");
 							return -1;
 						}
 						_ElseEncountered = true;
 					}
 					else if(name == _ReservedDirectives[_Defined_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					// special
 					else if(name == _ReservedDirectives[_Include_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					else if(name == _ReservedDirectives[_Line_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					else if(name == _ReservedDirectives[_Error_Token])
-					{}
+					{
+						_IfEncountered = false;
+						_ElseEncountered = false;
+					}
 					
-					symbolTable.addNode(&symbolTable, name, value);
+					symbolTable.addNode(&symbolTable, name, value, node);
 					
 					isValid = true;
 
@@ -795,7 +835,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 			{
 				if(strcmp(ifGroup->name,_ReservedDirectives[_Endif_Token]))
 				{
-					printf("%d\t| %s\n", ifGroup->index, ifGroup->name);
+					printf("%d\t| %s\tpos:%d : %s\n", ifGroup->index, ifGroup->name, abs(list->head - ifGroup->filePosition), ifGroup->filePosition->data);
 					ifGroup = ifGroup->next;
 					break;
 				}
@@ -806,7 +846,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 			{
 				if(strcmp(endif->name, _ReservedDirectives[_Endif_Token]) == 0)
 				{
-					printf("%d\t| %s\n", endif->index, endif->name);
+					printf("%d\t| %s\tpos:%d : %s\n", endif->index, endif->name, abs(list->head - endif->filePosition), endif->filePosition->data);
 					endif = endif->next;
 					break;
 				}
