@@ -1,6 +1,8 @@
 #ifndef SYMBOL_TABLE_H
 #define SYMBOL_TABLE_H
 
+#define LENGTH 10
+
 #include "string_utils.h"
 
 struct _Symbol typedef _Symbol;
@@ -34,9 +36,9 @@ struct _Symbol_Table
 	_Symbol_Table * ifStack;
 	
 	int(*addNode)(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition);
-	int(*removeNode)(_Symbol_Table * list, _Symbol * node);
+	int(*removeNode)(_Symbol_Table * list, const char * value);
 	int(*print)(_Symbol_Table * list);
-	int(*find)(_Symbol_Table * list, const char * name, const char * value);
+	_Symbol*(*find)(_Symbol_Table * list, const char * value);
 };
 
 struct _Symbol_Pointer_List_Node
@@ -65,9 +67,9 @@ int printSymbolPointerList(_Symbol_Pointer_List * list);
 int initSymbolPointerList(_Symbol_Pointer_List * list);
 
 int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition);
-int removeSymbolNode(_Symbol_Table * list, _Symbol * node);
+int removeSymbolNode(_Symbol_Table * list, const char * value);
 int printSymbolTable(_Symbol_Table * list);
-int findSymbolNode(_Symbol_Table * list, const char * name, const char * value);
+_Symbol * findSymbolNode(_Symbol_Table * list, const char * value);
 
 int initSymbolTable(_Symbol_Table * list);
 

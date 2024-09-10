@@ -368,7 +368,7 @@ partOfString(char * line, char * substr)
 bool 
 isWhiteSpace(const char c)
 {
-	return ( (c == ' ') ||  (c == '\t') || (c == '\n'));
+	return ( (c == ' ') ||  (c == '\t') || (c == '\n') || (c == '\r') );
 }
 
 bool 
@@ -396,11 +396,13 @@ trimWhiteSpaces(char * string)
 		DEBUG_PRINT("Could not trim whitespaces from NULL");
 		return -1;
 	}
+	string += (strlen(string)-1);	
 	
-	while(string && isWhiteSpace(*string)) string++;
-	string += (strlen(string)-1);
-	while(string && isWhiteSpace(*string)) string--;
-	*(string+1) = '\0';
+	if(isWhiteSpace(*string))
+	{
+		*(string) = '\0';
+		trimWhiteSpaces(string);
+	}
 
 	return 0;
 }

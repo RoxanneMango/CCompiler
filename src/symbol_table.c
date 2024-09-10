@@ -12,44 +12,41 @@ initSymbolTable(_Symbol_Table * list)
 	return 0;
 }
 
-int removeSymbolNode(_Symbol_Table * list, _Symbol * node)
+int 
+removeSymbolNode(_Symbol_Table * list, const char * value)
 {
 	if(!list)
 	{
 		DEBUG_PRINT("_LinkedStringList * list was NULL\n");
 		return -1;
 	}
-	if(!node)
+	if(!list->head)
 	{
-		DEBUG_PRINT("_StringNode * node was NULL\n");
+		DEBUG_PRINT("_Symbol_Table head was NULL\n");
+		return -1;
+	}
+	if(!value)
+	{
+		DEBUG_PRINT("const char * value was NULL\n");
 		return -1;
 	}
 	
-	_Symbol * next = node->next;
-	_Symbol * previous = node->previous;
-
-	if(node == list->head)	// its the start node
+	_Symbol * node = list->head;
+	while(node)
 	{
-		list->head = NULL;
-		list->tail = NULL;
-		free(node->name);
-		if(node->value) free(node->value);
-		free(node);
-	}
-	else if(next)			// its a node in the middle of the list
-	{
-		previous->next = next;
-		next->previous = previous;
-		free(node->name);
-		if(node->value) free(node->value);
-		free(node);
-	}
-	else					// its at the end of the list
-	{
-		previous->next = NULL;
-		free(node->name);
-		if(node->value) free(node->value);
-		free(node);
+		if(node->value && (strcmp(node->value, value) == 0))
+		{
+			// remove node
+			_Symbol * node2;
+			node2 = node->previous;
+			node2->next = node->next;
+			node->next->previous = node2;
+			// free memory
+			free(node->name);
+			free(node->value);
+			free(node);
+		}
+		node = node->next;
 	}
 	
 	return 0;
@@ -81,7 +78,7 @@ int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _
 	}
 	
 	// assign value name
-	int nameLen = strlen(name);
+	int nameLen = strlen(name) + 1;
 	node->name = malloc(sizeof(char) * nameLen);
 	node->name[0] = '\0';
 	node->index = 0;
@@ -90,7 +87,7 @@ int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _
 	node->fileName = NULL;
 	node->filePosition = filePosition;
 
-	DEBUG_PRINT("addSymbolNode() -> symbol  name: %s\n", node->name);
+	DEBUG_PRINT("addSymbolNode() -> symbol name: %s\n", node->name);
 
 	// set symbol to be defined
 	node->isDefined = true;
@@ -98,13 +95,17 @@ int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _
 	// if symbol has a value assign it
 	if(value)
 	{
-		int valueLen = strlen(value);
+		int valueLen = strlen(value) + 1;
 		node->value = malloc(sizeof(char) * valueLen);
 		node->value[0] = '\0';
 		strcpy(node->value, value);
 		
 		DEBUG_PRINT("addSymbolNode() -> symbol value: %s\n", node->value);
-	}	
+	}
+	else
+	{
+		node->value = NULL;
+	}
 	
 	node->next = NULL;
 	// List has no nodes yet, make this the first node
@@ -156,33 +157,33 @@ int printSymbolTable(_Symbol_Table * list)
 	return 0;
 }
 
-int 
-findSymbolNode(_Symbol_Table * list, const char * name, const char * value)
+_Symbol * 
+findSymbolNode(_Symbol_Table * list, const char * name)
 {
 	if(!list)
 	{
 		DEBUG_PRINT("_Symbol_Table * was NULL\n");
-		return -1;
+		return NULL;
 	}
 	if(!list->head)
 	{
 		DEBUG_PRINT("_Symbol_Table head was NULL\n");
-		return -1;		
-	}
-	
+		return NULL;
+	}	
 	DEBUG_PRINT("list length: %d\n", list->length);
 	
 	_Symbol * node = list->head;
 	while(node)
 	{
-		if((strcmp(node->name, name) == 0) && (strcmp(node->value, value) == 0) )
-		{
+		if(node->name && strcmp(node->name, name) == 0)
+		{			
 			// found the node!
-			return 1;
+			DEBUG_PRINT("FOUND _Symbol : %s!\n", node->name);
+			return node;
 		}
 		node = node->next;
 	}
-	return 0;
+	return NULL;
 }
 
 
