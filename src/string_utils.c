@@ -121,22 +121,14 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 	DEBUG_PRINT("list length: %d\n", list->length);
 	
 	_StringNode * node = list->head;
-	bool newLine = true;
+
+	int lineNumber = 1;
 
 	if(prettyPrint)
 	{
 		while(node)
 		{
-			if(newLine)
-			{
-				printf("%d\t| %s", node->index, node->data);
-				newLine = false;
-			}
-			else
-			{
-				printf("%s", node->data);
-			}
-			newLine = strstr(node->data, "\n");
+			printf("%d\t| %s", node->index, /*lineNumber++,*/ node->data);
 			node = node->next;
 		}
 	}
@@ -149,113 +141,6 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 		}
 	}
 
-	return 0;
-}
-
-int
-stitchTogetherFromFile(const char * filePATH, const char * outPATH)
-{
-	printf("stitchTogether() ...\n");
-	
-	// parse the file before processing it
-	FILE * FP = fopen(filePATH, "r");
-	FILE * FP_OUT = fopen(outPATH, "w");
-	
-	if(!FP)
-	{
-		return -1;
-	}
-	if(!FP_OUT)
-	{
-		return -1;
-	}
-	
-	char chunk[128];
-	
-	size_t len = sizeof(chunk);
-	char * line = malloc(len);
-	
-	if(line == NULL)
-	{
-		return -1;
-	}
-	
-	while(fgets(chunk, sizeof(chunk), FP) != NULL)
-	{
-		// empty the line buffer
-		line[0] = '\0';
-		
-		// Resize the line buffer if necessary
-		size_t len_used = strlen(line);
-		size_t chunk_used = strlen(chunk);
-
-		if(len - len_used < chunk_used)
-		{
-			len *= 2;
-			if((line = realloc(line, len)) == NULL)
-			{
-				DEBUG_PRINT("Unable to reallocate memory for the line buffer\n");
-				free(line);
-				return -1;
-			}
-		}
-
-		// Copy the chunk to the end of the line buffer
-		strncpy(line + len_used, chunk, len - len_used);
-		len_used += chunk_used;
-
-		// Check if line contains '\n', if yes process the line of text
-		// the preprocessing happens here ...
-		if(line[len_used - 1] == '\n')
-		{	
-			char * splitString = strstr(line, "\\");
-			if(splitString)
-			{
-				int splitPos = abs(line - splitString)+1;
-				int stringLen = strlen(line);
-
-//				printf("split string: %d ; %d\n", splitPos, stringLen);
-
-				// check if its valid syntax for string splitting
-				if( (splitPos < stringLen) &&
-					((line[splitPos] == ' ') || 
-					(line[splitPos] == '\t') || 
-					(line[splitPos] == '\n')) )
-				{
-					DEBUG_PRINT("split string: %s", line);
-
-					// check for whitespaces
-					bool whiteSpaceWarning = (line[splitPos] != '\n');
-					bool isValidStitch = true;
-					DEBUG_PRINT("whiteSpaceWarning: %d\n\n", whiteSpaceWarning);
-
-					for(int i = splitPos; isValidStitch && (i < stringLen); i++)
-					{
-						if( (line[i] != ' ') && (line[i] != '\t') && (line[i] != '\n') )
-						{
-							DEBUG_PRINT("is not Whitespace! : %c\n", line[i]);
-							isValidStitch = false;
-						}
-					}
-					if(isValidStitch)
-					{
-						if(whiteSpaceWarning)
-						{
-							fprintf(stderr, "warning: backslash and newline separated by space\n");
-						}
-						line[splitPos-1] = '\0';
-					}
-				}
-			}
-			fputs(line, FP_OUT);
-		}
-	}
-	fclose(FP);
-	fclose(FP_OUT);
-	free(line);
-	
-	DEBUG_PRINT("\n\nMax // line size: %zd\n", len);
-	
 	return 0;
 }
 
@@ -313,13 +198,35 @@ stitchTogether(_LinkedStringList * list)
 					{
 						fprintf(stderr, "warning: backslash and newline separated by space\n");
 					}
+					// concatinate strings together
+					DEBUG_PRINT("Stitching lines together\n");					
 					line[splitPos-1] = '\0';
+					
+					_StringNode * nextNode = node->next;
+					
+					if(nextNode == NULL)
+					{
+						fprintf(stderr, "\033[1;31merror\e[0m: stray '\' in program\n");
+					}
+					char * nextLine = nextNode->data;
+					int length1 = strlen(line);
+					int length2 = strlen(nextLine);
+					char * concat = malloc(sizeof(char) * (length1 + length2) + 1);
+					concat[0] = '\0';
+					strcat(concat, line);
+					strcat(concat, nextLine);
+					
+					DEBUG_PRINT("(%d + %d) | concat: %s + %s = %s\n", node->index, nextNode->index, line, nextLine, concat);
+
+					// swapperoo the data with our newly allocated string
+					list->removeNode(list, nextNode);					
+					free(node->data);
+					node->data = concat;
 				}
 			}
 		}		
 		node = node->next;
 	}
-	
 	return 0;
 }
 

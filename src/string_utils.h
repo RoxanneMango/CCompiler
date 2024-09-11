@@ -25,7 +25,6 @@ int removeStringNode(_LinkedStringList * list, _StringNode * node);
 int printStringList(_LinkedStringList * list, bool prettyPrint);
 int initStringList(_LinkedStringList * list);
 //
-int stitchTogetherFromFile(const char * filePATH, const char * outPATH);
 int stitchTogether(_LinkedStringList * list);
 bool partOfString(char * line, char * substr);
 bool isWhiteSpace(const char c);
