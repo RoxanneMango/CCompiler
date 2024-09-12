@@ -664,7 +664,7 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 
 			// symbol was defined at some point, but we still need to verify that it was defined before
 			// this ifndef statement occured
-			if(foundSymbol)
+			if(foundSymbol && directive->filePosition)
 			{
 				definedBeforeStatement =  directive->filePosition->index > foundSymbol->filePosition->index;
 				DEBUG_PRINT("%s:%d > %s:%d = %d\n", foundSymbol->filePosition->data, foundSymbol->filePosition->index, directive->filePosition->data, directive->filePosition->index, definedBeforeStatement);
@@ -703,11 +703,13 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 					}
 					end = end->next;
 				}
-				DEBUG_PRINT("BEGIN = %s: %d ; END = %s: %d\n", begin->filePosition->data, begin->filePosition->index, end->filePosition->data, end->filePosition->index);				
+				DEBUG_PRINT("BEGIN = %s: %d\nEND = %s: %d\n", begin->filePosition->data, begin->filePosition->index, end->filePosition->data, end->filePosition->index);				
 				
 				_StringNode * a = begin->filePosition;
 				_StringNode * b = end->filePosition;
 				_StringNode * line = a;
+
+				DEBUG_PRINT("Removing symbols from symbol table:\n");
 				while(true)
 				{
 					DEBUG_PRINT("\tline: %s\n", line->data);
@@ -719,10 +721,9 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 						_FileLines.removeNode(&_FileLines, b);
 						break;
 					}
-				}		
-				DEBUG_PRINT("Removing symbols from symbol table:\n");
-				DEBUG_PRINT("\tbegin: %s %s\n", begin->name, begin->value ? begin->value : "");
-				DEBUG_PRINT("\tend: %s %s\n", end->name, end->value ? end->value : "");
+				}
+				list->removeNode(list, directive);
+				directive->filePosition = NULL;
 				list->removeNode(list, begin);
 				list->removeNode(list, end);
 				DEBUG_PRINT("Recursing back into handleIfGroups\n");

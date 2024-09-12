@@ -30,8 +30,15 @@ int removeStringNode(_LinkedStringList * list, _StringNode * node)
 
 	if(node == list->head)	// its the start node
 	{
-		list->head = NULL;
-		list->current = NULL;
+		if(next)
+		{
+			list->head = next;
+		}
+		else
+		{
+			list->head = NULL;
+			list->current = NULL;			
+		}
 		free(node->data);
 		free(node);
 	}

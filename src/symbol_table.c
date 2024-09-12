@@ -31,20 +31,51 @@ removeSymbolNode(_Symbol_Table * list, const char * value)
 		return -1;
 	}
 	
-	_Symbol * node = list->head;
+	_Symbol * node = list->head;	
 	while(node)
 	{
 		if(node->value && (strcmp(node->value, value) == 0))
 		{
-			// remove node
-			_Symbol * node2;
-			node2 = node->previous;
-			node2->next = node->next;
-			node->next->previous = node2;
-			// free memory
+			_Symbol * next = node->next;
+			_Symbol * previous = node->previous;
+			if(node == list->head)
+			{
+				// head has no previous node!
+				if(next)
+				{
+					list->head = next;
+					list->head->previous = NULL;
+				}
+				// list is now completely empty!
+				else
+				{
+					list->head = NULL;
+					list->tail = NULL;
+				}
+			}
+			// symbol is at end of list
+			else if(node == list->tail)
+			{
+				list->tail = previous;
+				list->tail->next = NULL;
+			}
+			// symbol is somewhere in middle of list
+			else
+			{
+				// take out middle node and reconnect the chain
+				previous->next = next;
+				next->previous = previous;
+			}
+
+			// deallocate node
 			free(node->name);
 			free(node->value);
 			free(node);
+			
+			// decrement list length
+			list->length -= 1;
+			
+			break;
 		}
 		node = node->next;
 	}
