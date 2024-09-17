@@ -229,6 +229,7 @@ stitchTogether(_LinkedStringList * list)
 					list->removeNode(list, nextNode);					
 					free(node->data);
 					node->data = concat;
+					continue;
 				}
 			}
 		}		

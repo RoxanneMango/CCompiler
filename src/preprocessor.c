@@ -1264,19 +1264,13 @@ int
 tokenization(_LinkedStringList * list)
 {
 	int len = sizeof(_Punctuation) / sizeof(char);
-	printf("length: %d\nPunctuation: ", len);
-	for(int i = 0; i < len; i++)
-	{
-		printf("%c ", _Punctuation[i]);
-	}
-	len = sizeof(_Operators) / sizeof(char) / sizeof(char*);
-	printf("\nlength: %d\nOperator: ", len);
-	for(int i = 0; i < len; i++)
-	{
-		printf("%s ", _Operators[i]);
-	}
+	printf("length: %d\nPunctuation: ", len); for(int i = 0; i < len; i++) { printf("%c ", _Punctuation[i]); }
+	//
+	len = sizeof(_Operators) / sizeof(char) / sizeof(char*); printf("\nlength: %d\nOperator: ", len);
+	for(int i = 0; i < len; i++) { printf("%s ", _Operators[i]); }
+	//
 	printf("\n");
-	return 0;
+//	return 0;
 	
 	_StringNode * node = list->head;
 	while(node)
@@ -1289,7 +1283,6 @@ tokenization(_LinkedStringList * list)
 		int index = 0;
 		
 		bool isStringLiteral = false;
-		bool isCharLiteral = false;
 		
 		// clean the string ...
 		while(isWhiteSpace(*string)) string++;
@@ -1297,37 +1290,72 @@ tokenization(_LinkedStringList * list)
 	
 		for(int i = 0; i <= length; i++)
 		{
-//			if()
-
-
-			if( (i==length) || (!isStringLiteral && !isCharLiteral && isWhiteSpace(string[i])) )
+			token[index] = string[i];
+			index++;
+			
+			if(!isStringLiteral)
 			{
-				// terminate token string
-				token[index] = '\0';
+				if((i==length && strlen(token)) || (isWhiteSpace(string[i]) && (strlen(token) > 0)) )
+				{
+					// terminate token string
+					token[index] = '\0';
 
-				printf("> %s\n", token);
-				// Try to find a match with a preprocessing token ...
-				if(strlen(token))
-					syntaxTree.add(&syntaxTree, token);
+					printf("%d\t: %s\n", node->index, token);
+					// Try to find a match with a preprocessing token ...
+	//				if(strlen(token))
+	//					syntaxTree.add(&syntaxTree, token);
 
-				// reset token string
-				index = 0;
-				token[0] = '\0';
+					// reset token string
+					index = 0;
+					token[0] = '\0';
+				}
+
+
 			}
-			else
+			
+			if(string[i] == '\"')
 			{
-				if(token[index] == '\"')
+//				token[index] = string[i];
+//				index++;
+				
+				// make sure it is not escaped
+				if( (i == 0) || (  ((string[i-1] != '\\') || ( (i>1) && (string[i-2] == '\\') ) ) ) )
 				{
-					isStringLiteral = isStringLiteral ? false : true;
+					// closing bracket -- tokenize
+					if(isStringLiteral)
+					{
+						isStringLiteral = false;
+						
+						token[index] = '\0';
+						printf("%d\t: %s\n", node->index, token);
+						syntaxTree.add(&syntaxTree, token);
+
+						token[0] = '\0'; 
+						index = 0;
+					}
+					else
+					{
+						// encountered start of string literal, make everything before it its own token
+						if((i > 0) && strlen(token))
+						{
+							index--;
+							token[index] = '\0';
+							if(strlen(token))
+							{
+								printf("%d\t: %s\n", node->index, token);
+								syntaxTree.add(&syntaxTree, token);
+							}
+							
+							// make beginning of string literal
+							token[0] = string[i];
+							token[1] = '\0';
+							index = 1;
+						}
+						
+						isStringLiteral = true;
+					}
 				}
-				if(token[index] == '\'')
-				{
-					isCharLiteral = isCharLiteral ? false : true;
-				}
-				token[index] = string[i];
-				index++;
 			}
-		
 		}
 		node = node->next;
 	}
