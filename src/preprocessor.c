@@ -1242,9 +1242,42 @@ _SyntaxTree syntaxTree =
 	.search = searchSyntaxTreeNode
 };
 
+char _Punctuation[] = 
+{
+	'.', ',', ';', '#',
+	'(', ')', '{', '}',
+	'[', ']', '<', '>',
+	// operators
+	'!', '+', '-', '=',
+	'<', '>', '*', '/',
+	'&', '|', '%', '^',
+	'~'
+};
+char * _Operators[] =
+{
+	"--", "++", "||", "&&", "<<", ">>", "##", "->",
+	"-=", "+=", "|=", "&=", "<=", ">=", "==", "!=",
+	"^=", "*=", "/=", "%="
+};
+
 int
 tokenization(_LinkedStringList * list)
 {
+	int len = sizeof(_Punctuation) / sizeof(char);
+	printf("length: %d\nPunctuation: ", len);
+	for(int i = 0; i < len; i++)
+	{
+		printf("%c ", _Punctuation[i]);
+	}
+	len = sizeof(_Operators) / sizeof(char) / sizeof(char*);
+	printf("\nlength: %d\nOperator: ", len);
+	for(int i = 0; i < len; i++)
+	{
+		printf("%s ", _Operators[i]);
+	}
+	printf("\n");
+	return 0;
+	
 	_StringNode * node = list->head;
 	while(node)
 	{
@@ -1272,7 +1305,7 @@ tokenization(_LinkedStringList * list)
 				// terminate token string
 				token[index] = '\0';
 
-				printf("%s\n", token);
+				printf("> %s\n", token);
 				// Try to find a match with a preprocessing token ...
 				if(strlen(token))
 					syntaxTree.add(&syntaxTree, token);
