@@ -4,6 +4,19 @@
 
 // terminal colors: https://www.codeproject.com/Articles/5329247/How-to-Change-Text-Color-in-a-Linux-Terminal
 
+#ifdef aaaa
+#include <stdio.h>
+#include <stdio.h>
+#include <stdio.h>
+#include <stdio.h>
+#include <stdio.h>
+#endif
+
+#if x
+#elif xx
+#else
+#endif
+
 #define X true
 
 #if X+U == true
@@ -88,8 +101,17 @@ ng?"
 _LinkedStringList _FileLines = 
 { 
 	.head = NULL, 
-	.current = NULL, 
+	.tail = NULL, 
 	.addNode = addStringNode, 
+	.removeNode = removeStringNode,
+	.print = printStringList
+};
+
+_LinkedStringList _Tokens =
+{
+	.head = NULL,
+	.tail = NULL,
+	.addNode = addStringNode,
 	.removeNode = removeStringNode,
 	.print = printStringList
 };
@@ -644,100 +666,95 @@ validateInclude(const char * fileName)
 	return 1;
 }
 
+int
+removeBetweenSymbols(_Symbol_Table * list, _Symbol * begin)
+{
+	_Symbol * end = begin->next;
+	int nesting = 0;
+	while(end)
+	{
+		if(	!strcmp(end->name, _ReservedDirectives[_If_Token]) ||
+			!strcmp(end->name, _ReservedDirectives[_Ifdef_Token]) ||
+			!strcmp(end->name, _ReservedDirectives[_Ifndef_Token]) )
+		{
+			nesting++;
+		}
+		if(strcmp(end->name, _ReservedDirectives[_Endif_Token]) == 0)
+		{
+			if(nesting == 0)
+			{
+				break;
+			}
+			nesting--;						
+		}
+		end = end->next;
+	}
+	DEBUG_PRINT("BEGIN = %s: %d\nEND = %s: %d\n", begin->filePosition->data, begin->filePosition->index, end->filePosition->data, end->filePosition->index);				
+	
+	_StringNode * a = begin->filePosition;
+	_StringNode * b = end->filePosition;
+	_StringNode * line = a;
+
+	DEBUG_PRINT("Removing symbols from symbol table:\n");
+	while(true)
+	{
+		DEBUG_PRINT("\tline: %s\n", line->data);
+		_FileLines.removeNode(&_FileLines, line);
+		line = line->next;
+		if(line == b)
+		{
+			DEBUG_PRINT("\tlast line: %s\n", line->data);
+			_FileLines.removeNode(&_FileLines, b);
+			break;
+		}
+	}
+//				list->removeNode(list, directive);
+	DEBUG_PRINT("before directives length: %d\n", list->length);
+	list->removeNode(list, begin);
+	list->removeNode(list, end);
+	DEBUG_PRINT("after directives length: %d\n", list->length);
+	DEBUG_PRINT("Recursing back into handleIfGroups\n");
+	
+	return true;
+}
+
 // return the node where the preprocessing will continue
 // return NULL if something went wrong during processing
-_StringNode *
+void
 handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 {
+	int ifndef = false;
 	while(directive)
 	{
 		char * name = directive->name;
 		char * value = directive->value;
 		
-//		printf("name: %s ; value: %s\n", name, value);		
-		if(strcmp(name, _ReservedDirectives[_Ifndef_Token]) == 0)
+		if((ifndef = (strcmp(name, _ReservedDirectives[_Ifndef_Token]) == 0)) || (strcmp(name, _ReservedDirectives[_Ifdef_Token]) == 0))
 		{
-			DEBUG_PRINT("ifndef token!\n");						
+			DEBUG_PRINT("%s token!\n", ifndef ? "#ifndef" : "#ifdef");						
+
 			// look through symbol table to see if symbol has been defined already
 			_Symbol * foundSymbol = symbolTable.find(&symbolTable, value);
 			bool definedBeforeStatement = false;
 
-			// symbol was defined at some point, but we still need to verify that it was defined before
-			// this ifndef statement occured
+			// symbol was defined at some point, but need to verify that it was defined before ifndef statement
 			if(foundSymbol && directive->filePosition)
 			{
 				definedBeforeStatement =  directive->filePosition->index > foundSymbol->filePosition->index;
-				DEBUG_PRINT("%s:%d > %s:%d = %d\n", foundSymbol->filePosition->data, foundSymbol->filePosition->index, directive->filePosition->data, directive->filePosition->index, definedBeforeStatement);
+				DEBUG_PRINT("(%s: %d) > (%s: %d) = %d\n", directive->filePosition->data, directive->filePosition->index, foundSymbol->filePosition->data, foundSymbol->filePosition->index, definedBeforeStatement);
 			}
-
 			// execute
-			if(definedBeforeStatement == false)
+			if((ifndef && !definedBeforeStatement) || (!ifndef && definedBeforeStatement))
 			{
-				DEBUG_PRINT("token was not defined %s!\n", value);
-				
-				
+				// recurse into it
+				DEBUG_PRINT("token was%sdefined %s -- Executing segment!\n", ifndef ? "not" : " ", value);
 			}
 			// not execute
 			else
 			{
 				DEBUG_PRINT("token was already defined: %s -- removing nodes!\n", value);
-				
-				_Symbol * begin = directive;
-				_Symbol * end = directive->next;
-				int nesting = 0;
-				while(end)
-				{
-					if(	!strcmp(end->name, _ReservedDirectives[_If_Token]) ||
-						!strcmp(end->name, _ReservedDirectives[_Ifdef_Token]) ||
-						!strcmp(end->name, _ReservedDirectives[_Ifndef_Token]) )
-					{
-						nesting++;
-					}
-					if(strcmp(end->name, _ReservedDirectives[_Endif_Token]) == 0)
-					{
-						if(nesting == 0)
-						{
-							break;
-						}
-						nesting--;						
-					}
-					end = end->next;
-				}
-				DEBUG_PRINT("BEGIN = %s: %d\nEND = %s: %d\n", begin->filePosition->data, begin->filePosition->index, end->filePosition->data, end->filePosition->index);				
-				
-				_StringNode * a = begin->filePosition;
-				_StringNode * b = end->filePosition;
-				_StringNode * line = a;
-
-				DEBUG_PRINT("Removing symbols from symbol table:\n");
-				while(true)
-				{
-					DEBUG_PRINT("\tline: %s\n", line->data);
-					_FileLines.removeNode(&_FileLines, line);
-					line = line->next;
-					if(line == b)
-					{
-						DEBUG_PRINT("\tlast line: %s\n", line->data);
-						_FileLines.removeNode(&_FileLines, b);
-						break;
-					}
-				}
-				list->removeNode(list, directive);
-				directive->filePosition = NULL;
-				list->removeNode(list, begin);
-				list->removeNode(list, end);
-				DEBUG_PRINT("Recursing back into handleIfGroups\n");
+				removeBetweenSymbols(list, directive);
 				handleIfGroups(list, list->head);
-			}
-		}
-		else if(strcmp(name, _ReservedDirectives[_Ifdef_Token]) == 0)
-		{
-			DEBUG_PRINT("ifdef token!\n");
-			// look through symbol table to see if symbol has been defined already
-			if(!symbolTable.find(&symbolTable, value))
-			{
-				DEBUG_PRINT("token was not defined %s!\n", value);
-				// symbol was not found ; remove everything from file between this and the #endif
 			}
 		}
 		else if(strcmp(name, _ReservedDirectives[_If_Token]) == 0)
@@ -887,7 +904,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 						char * tokenName = dict[1];
 						char * tokenValue = dictLength == 3 ? dict[2] : NULL;
 						
-						printf("tokenValue: %s\n", tokenValue ? "DEFINED" : "UNDEFINED");
+						DEBUG_PRINT("tokenValue: %s\n", tokenValue ? "DEFINED" : "UNDEFINED");
 						
 						// if symbol already exists, overwrite it with the new value
 						_Symbol * symbol = symbolTable.find(&symbolTable, tokenName);
@@ -900,17 +917,17 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 							}
 							if(tokenValue)
 							{
-								printf("tokenValue: %s %d\n", tokenValue, (int)strlen(tokenValue));
+								DEBUG_PRINT("tokenValue: %s %d\n", tokenValue, (int)strlen(tokenValue));
 								symbol->value = malloc(sizeof(char) * strlen(tokenValue));
 								symbol->value[0] = '\0';
 								strcpy(symbol->value, tokenValue);
 								symbol->value[strlen(tokenValue)] = '\0';
-								printf("Re-Define token %s %d!\n", tokenValue, (int)strlen(tokenValue));
+								DEBUG_PRINT("Re-Define token %s %d!\n", tokenValue, (int)strlen(tokenValue));
 							}
 						}
 						else
 						{
-							printf("Define token %s @ %d : %d!\n", tokenName, node->index, tokenValue ? (int)strlen(tokenValue) : -1);
+							DEBUG_PRINT("Define token %s @ %d : %d!\n", tokenName, node->index, tokenValue ? (int)strlen(tokenValue) : -1);
 							symbolTable.addNode(&symbolTable, tokenName, tokenValue, node);							
 						}
 						
@@ -1001,7 +1018,7 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 //	printf("\nSymbol table:\n");
 //	symbolTable.print(&symbolTable);
 	
-	printf("\nDirective list:\n");
+	DEBUG_PRINT("\nDirective list:\n");
 //	directiveList.print(&directiveList);
 	handleIfGroups(&directiveList, directiveList.head);
 
@@ -1010,8 +1027,6 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 		
 	return 0;
 }
-
-
 
 int populateSymbolTable(_LinkedStringList * list)
 {
@@ -1134,6 +1149,158 @@ expandIncludes(_LinkedStringList * list)
 	return 0;
 }
 
+struct _SyntaxTreeNode typedef _SyntaxTreeNode;
+struct _SyntaxTree typedef _SyntaxTree;
+
+int addSyntaxTreeNode(_SyntaxTree * tree, char * str);
+
+
+// make length go up
+int searchSyntaxTreeNode(_SyntaxTree * tree, char * string, int length);
+
+int searchSyntaxTreeNode(_SyntaxTree * tree, char * string, int length)
+{
+	return 0;
+}
+
+struct _SyntaxTreeNode
+{
+	int depth;
+	int size;
+	char data;
+	_SyntaxTreeNode * parent;
+	_SyntaxTreeNode * children;
+};
+
+struct _SyntaxTree
+{
+	int size;
+	_SyntaxTreeNode * children;
+
+	int(*add)(_SyntaxTree * tree, char * str);
+	int(*search)(_SyntaxTree * tree, char * string, int length);
+};
+
+int addSyntaxTreeNode(_SyntaxTree * tree, char * str)
+{
+//	printf("int addSyntaxTreeNode(_SyntaxTree * tree, char * str)\n");
+	
+	// error checking
+	if(!tree) { DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return -1; }
+	if(!str)   { DEBUG_PRINT("char * str was NULL\n"); return -1; }
+		
+	int depth = 0;
+	
+	int length = strlen(str);
+	
+	_SyntaxTreeNode * current = tree->children;
+
+	for(int i = 0; current && (i < length); i++)
+	{
+		bool isFound = false;
+		int j = 0;
+		while(j < current->size)
+		{
+			if(str[i] == current[j].data)
+			{
+				isFound = true;
+				current = current[j].children;
+				depth++;
+				break;
+			}
+			else
+			{
+				j++;
+			}
+		}
+		str++;
+	}
+
+	for(int i = 0; i < strlen(str); i++)
+	{
+		if(!current)
+		{
+			_SyntaxTreeNode * next = malloc(sizeof(_SyntaxTreeNode));
+			next->children = NULL;
+			next->data = str[i];
+			next->size = 1;
+			next->depth = i;
+			next->parent = current;
+			current = next->children;
+			
+//			printf("%c ", next->data);
+		}
+	}
+	
+	return 0;
+}
+
+_SyntaxTree syntaxTree = 
+{
+	.size = 0,
+	.add = addSyntaxTreeNode,
+	.search = searchSyntaxTreeNode
+};
+
+int
+tokenization(_LinkedStringList * list)
+{
+	_StringNode * node = list->head;
+	while(node)
+	{
+		char * string = node->data;
+		int length = strlen(string);
+		char token[length];
+		token[0] = '\0';
+
+		int index = 0;
+		
+		bool isStringLiteral = false;
+		bool isCharLiteral = false;
+		
+		// clean the string ...
+		while(isWhiteSpace(*string)) string++;
+		trimWhiteSpaces(string);
+	
+		for(int i = 0; i <= length; i++)
+		{
+//			if()
+
+
+			if( (i==length) || (!isStringLiteral && !isCharLiteral && isWhiteSpace(string[i])) )
+			{
+				// terminate token string
+				token[index] = '\0';
+
+				printf("%s\n", token);
+				// Try to find a match with a preprocessing token ...
+				if(strlen(token))
+					syntaxTree.add(&syntaxTree, token);
+
+				// reset token string
+				index = 0;
+				token[0] = '\0';
+			}
+			else
+			{
+				if(token[index] == '\"')
+				{
+					isStringLiteral = isStringLiteral ? false : true;
+				}
+				if(token[index] == '\'')
+				{
+					isCharLiteral = isCharLiteral ? false : true;
+				}
+				token[index] = string[i];
+				index++;
+			}
+		
+		}
+		node = node->next;
+	}
+	return 0;
+}
+
 int
 preprocess(const char * filePATH, const char * outPATH)
 {
@@ -1141,6 +1308,10 @@ preprocess(const char * filePATH, const char * outPATH)
 
 	stitchTogether(&_FileLines);
 	filterOutComments(&_FileLines);
+	
+	// tokenization
+	tokenization(&_FileLines);
+	
 	handlePreprocessorDirectives(&_FileLines);
 //	expandIncludes(&_FileLines);
 	

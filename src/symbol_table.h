@@ -36,7 +36,7 @@ struct _Symbol_Table
 	_Symbol_Table * ifStack;
 	
 	int(*addNode)(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition);
-	int(*removeNode)(_Symbol_Table * list, const char * value);
+	int(*removeNode)(_Symbol_Table * list, _Symbol * node);
 	int(*print)(_Symbol_Table * list);
 	_Symbol*(*find)(_Symbol_Table * list, const char * value);
 };
@@ -67,7 +67,7 @@ int printSymbolPointerList(_Symbol_Pointer_List * list);
 int initSymbolPointerList(_Symbol_Pointer_List * list);
 
 int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition);
-int removeSymbolNode(_Symbol_Table * list, const char * value);
+int removeSymbolNode(_Symbol_Table * list, _Symbol * node);
 int printSymbolTable(_Symbol_Table * list);
 _Symbol * findSymbolNode(_Symbol_Table * list, const char * value);
 

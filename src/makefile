@@ -11,9 +11,11 @@ LIB = ../lib
 BUILD = ../build
 BIN = ../bin
 
+CLI_ARGS = 2> error
+
 all: build-dir bin-dir build
 	@echo Running ... $(EXEC)
-	@$(BIN)/$(EXEC)
+	@$(BIN)/$(EXEC) $(CLI_ARGS)
 
 build: $(C_OBJECTS)
 	@echo [+] Linking ...
@@ -24,6 +26,7 @@ $(C_OBJECTS): %.o: %.c
 	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $(BUILD)/$@
 
 debug: CFLAGS += -DDEBUG
+debug: CLI_ARGS = 
 debug: all
 
 build-dir:

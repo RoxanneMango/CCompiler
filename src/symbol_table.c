@@ -13,7 +13,8 @@ initSymbolTable(_Symbol_Table * list)
 }
 
 int 
-removeSymbolNode(_Symbol_Table * list, const char * value)
+removeSymbolNode(_Symbol_Table * list, _Symbol * node)
+//removeSymbolNode(_Symbol_Table * list, const char * value)
 {
 	if(!list)
 	{
@@ -25,60 +26,51 @@ removeSymbolNode(_Symbol_Table * list, const char * value)
 		DEBUG_PRINT("_Symbol_Table head was NULL\n");
 		return -1;
 	}
-	if(!value)
+	if(!node)
 	{
-		DEBUG_PRINT("const char * value was NULL\n");
+		DEBUG_PRINT("_Symbol * node was NULL\n");
 		return -1;
 	}
 	
-	_Symbol * node = list->head;	
-	while(node)
+	_Symbol * next = node->next;
+	_Symbol * previous = node->previous;
+	if(node == list->head)
 	{
-		if(node->value && (strcmp(node->value, value) == 0))
+		// head has no previous node!
+		if(next)
 		{
-			_Symbol * next = node->next;
-			_Symbol * previous = node->previous;
-			if(node == list->head)
-			{
-				// head has no previous node!
-				if(next)
-				{
-					list->head = next;
-					list->head->previous = NULL;
-				}
-				// list is now completely empty!
-				else
-				{
-					list->head = NULL;
-					list->tail = NULL;
-				}
-			}
-			// symbol is at end of list
-			else if(node == list->tail)
-			{
-				list->tail = previous;
-				list->tail->next = NULL;
-			}
-			// symbol is somewhere in middle of list
-			else
-			{
-				// take out middle node and reconnect the chain
-				previous->next = next;
-				next->previous = previous;
-			}
-
-			// deallocate node
-			free(node->name);
-			free(node->value);
-			free(node);
-			
-			// decrement list length
-			list->length -= 1;
-			
-			break;
+			list->head = next;
+			list->head->previous = NULL;
 		}
-		node = node->next;
+		// list is now completely empty!
+		else
+		{
+			list->head = NULL;
+			list->tail = NULL;
+		}
 	}
+	// symbol is at end of list
+	else if(node == list->tail)
+	{
+		list->tail = previous;
+		list->tail->next = NULL;
+	}
+	// symbol is somewhere in middle of list
+	else
+	{
+		// take out middle node and reconnect the chain
+		previous->next = next;
+		next->previous = previous;
+	}
+
+	// deallocate node
+	free(node->name);
+	free(node->value);
+	free(node);
+	
+	// decrement list length
+	list->length -= 1;
+	DEBUG_PRINT("REMOVED!\n");
 	
 	return 0;
 }

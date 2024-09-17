@@ -45,7 +45,7 @@ struct _LinkedStringList
 {
 	unsigned int length;
 	_StringNode * head;
-	_StringNode * current;
+	_StringNode * tail;
 	int(*addNode)(_LinkedStringList * list, const char * string);
 	int(*removeNode)(_LinkedStringList * list, _StringNode * node);
 	int(*print)(_LinkedStringList * list, bool prettyPrint);

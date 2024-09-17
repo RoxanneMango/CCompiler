@@ -4,7 +4,7 @@ int
 initStringList(_LinkedStringList * list)
 {
 	list->head = NULL;
-	list->current = NULL;
+	list->tail = NULL;
 	list->addNode = addStringNode;
 	list->removeNode = removeStringNode;
 	list->print = printStringList;
@@ -37,7 +37,7 @@ int removeStringNode(_LinkedStringList * list, _StringNode * node)
 		else
 		{
 			list->head = NULL;
-			list->current = NULL;			
+			list->tail = NULL;			
 		}
 		free(node->data);
 		free(node);
@@ -88,7 +88,7 @@ int addStringNode(_LinkedStringList * list, const char * string)
 	node->next = NULL;
 
 	// List has no nodes yet, make this the first node
-	if(!list->current)
+	if(!list->tail)
 	{
 		node->index = 0;
 		node->next = NULL;
@@ -96,16 +96,16 @@ int addStringNode(_LinkedStringList * list, const char * string)
 		
 		list->length = 1;
 		list->head = node;
-		list->current = node;
+		list->tail = node;
 	}
 	else
 	{
 		node->index = list->length;
-		node->previous = list->current;
+		node->previous = list->tail;
 		node->next = NULL;
 
-		list->current->next = node;
-		list->current = node;
+		list->tail->next = node;
+		list->tail = node;
 
 		list->length++;
 	}
@@ -129,7 +129,7 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 	
 	_StringNode * node = list->head;
 
-	int lineNumber = 1;
+//	int lineNumber = 1;
 
 	if(prettyPrint)
 	{
