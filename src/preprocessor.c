@@ -1196,8 +1196,8 @@ int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size
 
 int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 {
-	printf("int addSyntaxTreeNode(_SyntaxTree * = '%s', char * str = '%s')\n", "tree", string);
-	printf("==============================================================================================\n");
+	DEBUG_PRINT("int addSyntaxTreeNode(_SyntaxTree * = '%s', char * str = '%s')\n", "tree", string);
+	DEBUG_PRINT("==============================================================================================\n");
 	
 	// error checking
 	if(!tree) 	{ DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return -1; }
@@ -1210,10 +1210,10 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	_SyntaxTreeNode *** list = &tree->children;
 
 	// if the tree is empty, create the first node
-	printf("Checking to see if tree is empty ...\n");
+	DEBUG_PRINT("Checking to see if tree is empty ...\n");
 	if(!*list)
 	{
-		printf("\tTree was empty -- adding '%c' and advancing ...\n", string[index]);
+		DEBUG_PRINT("\tTree was empty -- adding '%c' and advancing ...\n", string[index]);
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
@@ -1229,30 +1229,30 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	}
 	else
 	{
-		printf("\tTree was was not empty\n");
+		DEBUG_PRINT("\tTree was was not empty\n");
 	}
 
 	int listSize = tree->size;
 	bool isFound = *list == NULL ? false : true;
-	printf("Checking to see if there are letters to match against ...\n");
+	DEBUG_PRINT("Checking to see if there are letters to match against ...\n");
 	if(!isFound)
 	{
-		printf("\tTree child had no children -- skipping letter matching!\n");
+		DEBUG_PRINT("\tTree child had no children -- skipping letter matching!\n");
 	}
 	else
 	{
-		printf("\tTree had children -- entering matching loop ...\n");
+		DEBUG_PRINT("\tTree had children -- entering matching loop ...\n");
 	}
 	while(isFound && (index < length))
 	{
 		isFound = false;
-		printf("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
+		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
 		for(int child_i = 0; child_i < listSize; child_i++)
 		{
-			printf("'%c', ", (*list)[child_i]->data);// getchar();
+			DEBUG_PRINT("'%c', ", (*list)[child_i]->data);// getchar();
 			if((*list)[child_i]->data == string[index])
 			{
-				printf("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
+				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
 				node = (*list)[child_i];
 				list = &node->children;
 				listSize = node->size;
@@ -1262,34 +1262,34 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		}
 		if(!isFound)
 		{
-			printf("\n\t\tCould not find a match!\n");
+			DEBUG_PRINT("\n\t\tCould not find a match!\n");
 		}
 		else
 		{
 			index++;
 		}
 	}
-	printf("Checking if node is at beginning of tree or not: %s...\n", node ? "false" : "true");
+	DEBUG_PRINT("Checking if node is at beginning of tree or not: %s...\n", node ? "false" : "true");
 	
 	// check whether we are at the beginning of the tree or not
 	if(node)
 	{
-		printf("\tnode->size++\n");
+		DEBUG_PRINT("\tnode->size++\n");
 		node->size++;
 	}
 	else
 	{
-		printf("\ttree->size++\n");
+		DEBUG_PRINT("\ttree->size++\n");
 		tree->size++;
 	}
 	
 	listSize++;
 	
 	// the node is not in the list, so add it!
-	printf("if((index(=%d) <= length(=%d)) && *list) ... %s\n", index, length, ((index <= length) && *list) ? "true -- entering loop" : "false -- skipping");
+	DEBUG_PRINT("if((index(=%d) <= length(=%d)) && *list) ... %s\n", index, length, ((index <= length) && *list) ? "true -- entering loop" : "false -- skipping");
 	if((index < length) && *list)
 	{
-		printf("\tCould not match letter '%c' with node at depth %d -- making list bigger (%d) and adding letter '%c'... \n", string[index], index, listSize, string[index]);
+		DEBUG_PRINT("\tCould not match letter '%c' with node at depth %d -- making list bigger (%d) and adding letter '%c'... \n", string[index], index, listSize, string[index]);
 		(*list) = realloc((*list), sizeof(_SyntaxTreeNode*) * listSize);
 		(*list)[listSize-1] = malloc(sizeof(_SyntaxTreeNode));
 		_initSyntaxTreeNode((*list)[listSize-1], index==(index-1), index, 0, string[index]);
@@ -1298,10 +1298,10 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	}
 	
 	// There are more letters but no more existing lists, make more!
-	printf("while(index(=%d) < length(=%d)) ... %s\n", index, length, (index < length) ? "true -- entering loop": "false -- skipping");
+	DEBUG_PRINT("while(index(=%d) < length(=%d)) ... %s\n", index, length, (index < length) ? "true -- entering loop": "false -- skipping");
 	while(index < length)
 	{
-		printf("\t-- Next list was empty ; allocating new list and node at depth %d with letter '%c' -- advancing ...\n", index, string[index]);
+		DEBUG_PRINT("\t-- Next list was empty ; allocating new list and node at depth %d with letter '%c' -- advancing ...\n", index, string[index]);
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
@@ -1312,12 +1312,12 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		index++;
 	}
 	
-	printf("Tree child nodes: %d\n\t", tree->size);
+	DEBUG_PRINT("Tree child nodes: %d\n\t", tree->size);
 	for(int i = 0; i < tree->size; i++)
 	{
-		printf("'%c' ", tree->children[i]->data);
+		DEBUG_PRINT("'%c' ", tree->children[i]->data);
 	}
-	printf("\n==============================================================================================\n");
+	DEBUG_PRINT("\n==============================================================================================\n");
 
 	return 0;
 }
