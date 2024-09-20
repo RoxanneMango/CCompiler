@@ -1153,15 +1153,7 @@ struct _SyntaxTreeNode typedef _SyntaxTreeNode;
 struct _SyntaxTree typedef _SyntaxTree;
 
 int addSyntaxTreeNode(_SyntaxTree * tree, char * str);
-
-
-// make length go up
-int searchSyntaxTreeNode(_SyntaxTree * tree, char * string, int length);
-
-int searchSyntaxTreeNode(_SyntaxTree * tree, char * string, int length)
-{
-	return 0;
-}
+int searchSyntaxTreeNode(_SyntaxTree * tree, char * string);
 
 struct _SyntaxTreeNode
 {
@@ -1178,7 +1170,7 @@ struct _SyntaxTree
 	_SyntaxTreeNode ** children;
 
 	int(*add)(_SyntaxTree * tree, char * string);
-	int(*search)(_SyntaxTree * tree, char * string, int length);
+	int(*search)(_SyntaxTree * tree, char * string);
 };
 
 int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size, char data)
@@ -1192,6 +1184,58 @@ int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size
 	node->children = NULL;
 	
 	return 0;
+}
+
+int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
+{
+	// error checking
+	if(!tree) 	{ DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return -1; }
+	if(!string) { DEBUG_PRINT("char * str was NULL\n"); 			return -1; }
+
+	int length = strlen(string);
+	if(!length)
+	{
+		DEBUG_PRINT("char * str was empty!\n"); return -1;
+	}
+
+	DEBUG_PRINT("searched string: %s\n", string);
+
+	int index = 0;
+	_SyntaxTreeNode *** list = &tree->children;
+
+	int listSize = tree->size;
+	bool isFound = *list == NULL ? false : true;
+	while(isFound && (index < length))
+	{
+		isFound = false;
+		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
+		if(*list)
+		{
+			for(int child_i = 0; child_i < listSize; child_i++)
+			{
+				DEBUG_PRINT("'%c', ", (*list)[child_i]->data);
+				if((*list)[child_i]->data == string[index])
+				{
+					DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
+					_SyntaxTreeNode * node = (*list)[child_i];
+					list = &node->children;
+					listSize = node->size;
+					isFound = true;
+					break;
+				}
+			}
+		}
+		if(!isFound)
+		{
+			DEBUG_PRINT("\n\t\tCould not find a match!\n");
+		}
+		else
+		{
+			index++;
+		}
+	}
+	
+	return index;
 }
 
 int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
@@ -1272,18 +1316,21 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	DEBUG_PRINT("Checking if node is at beginning of tree or not: %s...\n", node ? "false" : "true");
 	
 	// check whether we are at the beginning of the tree or not
-	if(node)
+	DEBUG_PRINT("Was there a complete match with the string? -- %s", isFound ? "true" : "false");
+	if(!isFound)
 	{
-		DEBUG_PRINT("\tnode->size++\n");
-		node->size++;
+		if(node)
+		{
+			DEBUG_PRINT("\tnode->size++\n");
+			node->size++;
+		}
+		else
+		{
+			DEBUG_PRINT("\ttree->size++\n");
+			tree->size++;
+		}
+		listSize++;
 	}
-	else
-	{
-		DEBUG_PRINT("\ttree->size++\n");
-		tree->size++;
-	}
-	
-	listSize++;
 	
 	// the node is not in the list, so add it!
 	DEBUG_PRINT("if((index(=%d) <= length(=%d)) && *list) ... %s\n", index, length, ((index <= length) && *list) ? "true -- entering loop" : "false -- skipping");
@@ -1330,20 +1377,19 @@ _SyntaxTree syntaxTree =
 	.search = searchSyntaxTreeNode
 };
 
-char _Punctuation[] = 
+char * _Punctuation[] = 
 {
-	'.', ',', ';', '#',
-	'(', ')', '{', '}',
-	'[', ']', '<', '>',
+	".", ",", ";", "#",
+	"(", ")", "{", "}",
+	"[", "]", "<", ">",
 	// operators
-	'!', '+', '-', '=',
-	'<', '>', '*', '/',
-	'&', '|', '%', '^',
-	'~'
+	"!", "+", "-", "=",
+	"<", ">", "*", "/",
+	"&", "|", "%", "^",
+	"~"
 };
 char * _Operators[] =
 {
-	"--", "++", "->", "-=", "-+",
 	"--", "++", "||", "&&", "<<", ">>", "##", "->",
 	"-=", "+=", "|=", "&=", "<=", ">=", "==", "!=",
 	"^=", "*=", "/=", "%="
@@ -1355,28 +1401,65 @@ processToken(char * string)
 	if(!string)
 	{
 		DEBUG_PRINT("matchToken() -- char * string is NULL!");
+		return -1;
 	}
 	if(!strlen(string))
 	{
 		DEBUG_PRINT("matchToken() -- char * string is empty!");
+		return -1;
 	}
 	
-	printf("> ");
-	int len = strlen(string);
-	for(int i = 0; i < len; i++)
+	trimWhiteSpaces(string);
+	if(!strlen(string))
 	{
-		printf("%c", string[i]);
+		DEBUG_PRINT("Trimmed string into nothingness!\n");
+		return -1;
+	}
+	
+	int length = strlen(string);
+	int index = 0;
+	
+	DEBUG_PRINT("========================\n");
+	DEBUG_PRINT("string: '%s'\n", string);
+	char token[strlen(string)];
+	token[0] = '\0';
+
+	printf("> ");
+	while(*string)
+	{
+		int i = syntaxTree.search(&syntaxTree, string);
+		if(i > 0)
+		{
+			if(index>0)
+			{
+				token[index] = '\0';
+				printf("IDENT:%s ", token);
+			}
+			token[0] = '\0';
+			strncpy(token, string, i);
+			token[i] = '\0';
+
+			printf("PUNC:%s ", token);
+
+			string += i;
+			index = 0;
+		}
+		else
+		{
+			token[index++] = *string++;			
+			if(!*string && strlen(token))
+			{
+				token[index] = '\0';
+				printf("IDENT:%s ", token);
+			}
+
+		}
 	}
 	printf("\n");
-	
-	
-	
-	
-	
-//	syntaxTree.add(&syntaxTree, token);
-	
+		
 	return 0;
 }
+
 
 int
 tokenization(_LinkedStringList * list)
@@ -1408,8 +1491,11 @@ tokenization(_LinkedStringList * list)
 				{
 					// terminate token string
 					token[index] = '\0';
-
-					processToken(token);
+					
+					if(strlen(token))
+					{
+						processToken(token);
+					}
 
 					index = 0;
 					token[0] = '\0';
@@ -1419,7 +1505,7 @@ tokenization(_LinkedStringList * list)
 			}
 			
 			if(string[i] == '\"')
-			{				
+			{
 				// make sure it is not escaped
 				if( (i == 0) || ((string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) ) )
 				{
@@ -1428,7 +1514,11 @@ tokenization(_LinkedStringList * list)
 					{
 						isStringLiteral = false;
 						token[index] = '\0';
-						processToken(token);
+						if(strlen)
+						{
+							printf("> STRING:%s\n", token);
+						}
+						
 						token[0] = '\0'; 
 						index = 0;
 					}
@@ -1439,11 +1529,11 @@ tokenization(_LinkedStringList * list)
 						{
 							index--;
 							token[index] = '\0';
+
 							if(strlen(token))
 							{
 								processToken(token);
 							}
-							
 							// make beginning of string literal
 							token[0] = string[i];
 							token[1] = '\0';
@@ -1468,22 +1558,26 @@ preprocess(const char * filePATH, const char * outPATH)
 	stitchTogether(&_FileLines);
 	filterOutComments(&_FileLines);
 
-	int len = sizeof(_Punctuation) / sizeof(char);
+	int len = sizeof(_Punctuation) / sizeof(char) / sizeof(char*); 
+	printf("Punctuation:\n");
 	for(int i = 0; i < len; i++) 
 	{
-//		printf("%c ", _Punctuation[i]);
-//		addSyntaxTreeNode(&syntaxTree, _Punctuation[i]);
+		printf("%s ", _Punctuation[i]);
+		addSyntaxTreeNode(&syntaxTree, _Punctuation[i]);
 	}
 	//
+	printf("\n");
 	len = sizeof(_Operators) / sizeof(char) / sizeof(char*); 
+	printf("Operators:\n");
 	for(int i = 0; i < len; i++)
 	{
-//		printf("%s ", _Operators[i]);
+		printf("%s ", _Operators[i]);
 		addSyntaxTreeNode(&syntaxTree, _Operators[i]);
 	}
+	printf("\n");
 	
 	// tokenization
-//	tokenization(&_FileLines);
+	tokenization(&_FileLines);
 	
 //	handlePreprocessorDirectives(&_FileLines);
 //	expandIncludes(&_FileLines);
