@@ -1416,7 +1416,7 @@ processToken(char * string)
 		return -1;
 	}
 	
-	int length = strlen(string);
+//	int length = strlen(string);
 	int index = 0;
 	
 	DEBUG_PRINT("========================\n");
@@ -1424,7 +1424,7 @@ processToken(char * string)
 	char token[strlen(string)];
 	token[0] = '\0';
 
-	printf("> ");
+	DEBUG_PRINT("> ");
 	while(*string)
 	{
 		int i = syntaxTree.search(&syntaxTree, string);
@@ -1433,14 +1433,17 @@ processToken(char * string)
 			if(index>0)
 			{
 				token[index] = '\0';
-				printf("IDENT:%s ", token);
+				DEBUG_PRINT("IDENT:%s ", token);
+				_Tokens.addNode(&_Tokens, token);
 			}
 			token[0] = '\0';
 			strncpy(token, string, i);
 			token[i] = '\0';
 
-			printf("PUNC:%s ", token);
-
+			DEBUG_PRINT("PUNC:%s ", token);
+			_Tokens.addNode(&_Tokens, token);
+			token[0] = '\0';
+			
 			string += i;
 			index = 0;
 		}
@@ -1450,12 +1453,13 @@ processToken(char * string)
 			if(!*string && strlen(token))
 			{
 				token[index] = '\0';
-				printf("IDENT:%s ", token);
+				DEBUG_PRINT("IDENT:%s ", token);
+				_Tokens.addNode(&_Tokens, token);
 			}
 
 		}
 	}
-	printf("\n");
+	DEBUG_PRINT("\n");
 		
 	return 0;
 }
@@ -1514,9 +1518,10 @@ tokenization(_LinkedStringList * list)
 					{
 						isStringLiteral = false;
 						token[index] = '\0';
-						if(strlen)
+						if(strlen(token))
 						{
-							printf("> STRING:%s\n", token);
+							DEBUG_PRINT("> STRING:%s\n", token);
+							_Tokens.addNode(&_Tokens, token);
 						}
 						
 						token[0] = '\0'; 
@@ -1578,6 +1583,7 @@ preprocess(const char * filePATH, const char * outPATH)
 	
 	// tokenization
 	tokenization(&_FileLines);
+	printStringListSimple(&_Tokens);
 	
 //	handlePreprocessorDirectives(&_FileLines);
 //	expandIncludes(&_FileLines);

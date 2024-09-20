@@ -78,12 +78,16 @@ int addStringNode(_LinkedStringList * list, const char * string)
 		DEBUG_PRINT("Could not add _StringNode\n");
 		return -1;
 	}
+	
+	DEBUG_PRINT("addStringNode string: %s\n", string);
+	
 	int len = strlen(string);
 	node->length = len;
 	node->data = malloc(sizeof(char) * len+1);
 	node->data[0] = '\0';
 	node->index = 0;
 	strncpy(node->data, string, len);
+	node->data[len] = '\0';
 
 	node->next = NULL;
 
@@ -108,6 +112,22 @@ int addStringNode(_LinkedStringList * list, const char * string)
 		list->tail = node;
 
 		list->length++;
+	}
+	return 0;
+}
+
+int printStringListSimple(_LinkedStringList * list)
+{
+	if(!list) 		{ DEBUG_PRINT("_LinkedStringList * was NULL\n");	return -1; }
+	if(!list->head)	{ DEBUG_PRINT("_LinkedStringList head was NULL\n");	return -1; }
+	
+	DEBUG_PRINT("list length: %d\n", list->length);
+	
+	_StringNode * node = list->head;
+	while(node)
+	{
+		printf("%s\n", node->data);
+		node = node->next;
 	}
 	return 0;
 }

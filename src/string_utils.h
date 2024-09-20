@@ -23,6 +23,7 @@ struct _LinkedStringList;
 int addStringNode(_LinkedStringList * list, const char * string);
 int removeStringNode(_LinkedStringList * list, _StringNode * node);
 int printStringList(_LinkedStringList * list, bool prettyPrint);
+int printStringListSimple(_LinkedStringList * list);
 int initStringList(_LinkedStringList * list);
 //
 int stitchTogether(_LinkedStringList * list);
