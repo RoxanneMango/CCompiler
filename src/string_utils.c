@@ -78,7 +78,7 @@ int addStringNode(_LinkedStringList * list, const char * string)
 		DEBUG_PRINT("Could not add _StringNode\n");
 		return -1;
 	}
-	
+		
 	DEBUG_PRINT("addStringNode string: %s\n", string);
 	
 	int len = strlen(string);

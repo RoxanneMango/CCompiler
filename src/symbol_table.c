@@ -5,9 +5,13 @@ initSymbolTable(_Symbol_Table * list)
 {
 	list->head = NULL;
 	list->tail = NULL;
+	list->ifStack = NULL;
+	
+	list->length = 0;
 	list->addNode = addSymbolNode;
 	list->removeNode = removeSymbolNode;
 	list->print = printSymbolTable;
+	list->find = findSymbolNode;
 	
 	return 0;
 }
@@ -76,7 +80,7 @@ removeSymbolNode(_Symbol_Table * list, _Symbol * node)
 }
 
 int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition)
-{	
+{
 	if(!list)
 	{
 		DEBUG_PRINT("_LinkedStringList * was NULL\n");
@@ -105,7 +109,8 @@ int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _
 	node->name = malloc(sizeof(char) * nameLen);
 	node->name[0] = '\0';
 	node->index = 0;
-	strcpy(node->name, name);
+	strncpy(node->name, name, nameLen);
+	node->name[nameLen] = '\0';
 
 	node->fileName = NULL;
 	node->filePosition = filePosition;
@@ -174,7 +179,7 @@ int printSymbolTable(_Symbol_Table * list)
 	_Symbol * node = list->head;
 	while(node)
 	{
-		printf("%d\t| %s %s\n", node->index, node->name, node->value?node->value:"");
+		printf("%d\t| %s %s\n", node->index, node->name, node->value ? node->value : "");
 		node = node->next;
 	}
 	return 0;
@@ -198,7 +203,7 @@ findSymbolNode(_Symbol_Table * list, const char * name)
 	_Symbol * node = list->head;
 	while(node)
 	{
-		if(node->name && strcmp(node->name, name) == 0)
+		if(node->name && (strcmp(node->name, name) == 0))
 		{			
 			// found the node!
 			DEBUG_PRINT("FOUND _Symbol : %s!\n", node->name);

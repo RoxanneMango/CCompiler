@@ -40,6 +40,8 @@
 #undef Y
 #ifdef Y
 exit(-1);
+printf("Hello world!\n");
+int x = 1234;
 #endif
 #endif
 
@@ -67,6 +69,9 @@ exit(-1);
 
 // Definition of macros is checked before include expansion (include guards)
 // include macros are expanded before defines!
+
+struct _SyntaxTreeNode typedef _SyntaxTreeNode;
+struct _SyntaxTree typedef _SyntaxTree;
 
 char testString[] =
 {
@@ -98,33 +103,6 @@ ng?"
 */
 
 // null initialize member variables
-_LinkedStringList _FileLines = 
-{ 
-	.head = NULL, 
-	.tail = NULL, 
-	.addNode = addStringNode, 
-	.removeNode = removeStringNode,
-	.print = printStringList
-};
-
-_LinkedStringList _Tokens =
-{
-	.head = NULL,
-	.tail = NULL,
-	.addNode = addStringNode,
-	.removeNode = removeStringNode,
-	.print = printStringList
-};
-
-_Symbol_Table symbolTable = 
-{
-	.head = NULL,
-	.tail = NULL,
-	.addNode = addSymbolNode,
-	.removeNode = removeSymbolNode,
-	.print = printSymbolTable,
-	.find = findSymbolNode
-};
 
 /* define where preprocessor looks for the standard C library header files
 *
@@ -152,36 +130,8 @@ char * _StandardLibraryHeaderLocations[] =
 	"/usr/include"
 };
 
-// define the reserved keywords, sorted in ascending sizes
-static const int _reservedDirectivesNum = 12;
-char * _ReservedDirectives[] =
-{
-	"#include", "#ifndef", "#pragma", "#define", "#endif", "#ifdef", "#undef", "#error", "#elif", "#else", "#line", "#if"
-};
-
-char * _ReservedOperators[] = 
-{
-	"+", "-", "*", "/", "%", "=", "==", "!", "!=", "|", "||", "&", "&&", "~", "^"
-};
-
 const char * LINE_MACRO = "__LINE__";
 const char * FILE_MACRO = "__FILE__";
-
-enum _KeyWord
-{
-	_Include_Token = 0,
-	_Ifndef_Token,
-	_Pragma_Token,
-	_Define_Token,
-	_Endif_Token,
-	_Ifdef_Token,
-	_Undef_Token,
-	_Error_Token,
-	_Elif_Token,
-	_Else_Token,
-	_Line_Token,
-	_If_Token
-};
 
 int
 filterOutComments(_LinkedStringList * list)
@@ -482,7 +432,7 @@ filterOutCommentsFromFile(const char * filePATH, const char * outPATH)
 }
 
 int
-readFromFile(const char * filePATH)
+readFromFile(const char * filePATH, _LinkedStringList * fileList)
 {	
 	// parse the file before processing it
 	FILE * FP = fopen(filePATH, "r");
@@ -528,7 +478,7 @@ readFromFile(const char * filePATH)
 		// Check if line contains '\n', if yes process the line of text
 		if( (line[len_used - 1] == '\n') )
 		{
-			_FileLines.addNode(&_FileLines, line);
+			fileList->addNode(fileList, line);
 			// empty the line buffer
 			line[0] = '\0';
 		}
@@ -537,7 +487,7 @@ readFromFile(const char * filePATH)
 	// add the last line
 	if(line && strlen(line))
 	{
-		_FileLines.addNode(&_FileLines, line);
+		fileList->addNode(fileList, line);
 	}
 	
 	fclose(FP);
@@ -667,19 +617,19 @@ validateInclude(const char * fileName)
 }
 
 int
-removeBetweenSymbols(_Symbol_Table * list, _Symbol * begin)
+removeBetweenSymbols(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol * begin)
 {
 	_Symbol * end = begin->next;
 	int nesting = 0;
 	while(end)
 	{
-		if(	!strcmp(end->name, _ReservedDirectives[_If_Token]) ||
-			!strcmp(end->name, _ReservedDirectives[_Ifdef_Token]) ||
-			!strcmp(end->name, _ReservedDirectives[_Ifndef_Token]) )
+		if(	!strcmp(end->name, "#if") ||
+			!strcmp(end->name, "#ifdef") ||
+			!strcmp(end->name, "#ifndef") )
 		{
 			nesting++;
 		}
-		if(strcmp(end->name, _ReservedDirectives[_Endif_Token]) == 0)
+		if(strcmp(end->name, "#endif") == 0)
 		{
 			if(nesting == 0)
 			{
@@ -699,12 +649,13 @@ removeBetweenSymbols(_Symbol_Table * list, _Symbol * begin)
 	while(true)
 	{
 		DEBUG_PRINT("\tline: %s\n", line->data);
-		_FileLines.removeNode(&_FileLines, line);
-		line = line->next;
+		_StringNode * next = line->next;
+		fileList->removeNode(fileList, line);
+		line = next;
 		if(line == b)
 		{
 			DEBUG_PRINT("\tlast line: %s\n", line->data);
-			_FileLines.removeNode(&_FileLines, b);
+			fileList->removeNode(fileList, b);
 			break;
 		}
 	}
@@ -721,7 +672,7 @@ removeBetweenSymbols(_Symbol_Table * list, _Symbol * begin)
 // return the node where the preprocessing will continue
 // return NULL if something went wrong during processing
 void
-handleIfGroups(_Symbol_Table * list, _Symbol * directive)
+handleIfGroups(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol_Table * symbolTable, _Symbol * directive)
 {
 	int ifndef = false;
 	while(directive)
@@ -729,12 +680,12 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 		char * name = directive->name;
 		char * value = directive->value;
 		
-		if((ifndef = (strcmp(name, _ReservedDirectives[_Ifndef_Token]) == 0)) || (strcmp(name, _ReservedDirectives[_Ifdef_Token]) == 0))
+		if((ifndef = (strcmp(name, "#ifndef") == 0)) || (strcmp(name, "#ifdef") == 0))
 		{
 			DEBUG_PRINT("%s token!\n", ifndef ? "#ifndef" : "#ifdef");						
 
 			// look through symbol table to see if symbol has been defined already
-			_Symbol * foundSymbol = symbolTable.find(&symbolTable, value);
+			_Symbol * foundSymbol = symbolTable->find(symbolTable, value);
 			bool definedBeforeStatement = false;
 
 			// symbol was defined at some point, but need to verify that it was defined before ifndef statement
@@ -753,11 +704,11 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 			else
 			{
 				DEBUG_PRINT("token was already defined: %s -- removing nodes!\n", value);
-				removeBetweenSymbols(list, directive);
-				handleIfGroups(list, list->head);
+				removeBetweenSymbols(list, fileList, directive);
+				handleIfGroups(list, fileList, symbolTable, list->head);
 			}
 		}
-		else if(strcmp(name, _ReservedDirectives[_If_Token]) == 0)
+		else if(strcmp(name, "#if") == 0)
 		{																		
 			// handle if statement here ...
 			DEBUG_PRINT("If token! : %s: %d\n", value, EVAL(value));				
@@ -767,33 +718,67 @@ handleIfGroups(_Symbol_Table * list, _Symbol * directive)
 	}
 }
 
-int 
-handlePreprocessorDirectives(_LinkedStringList * list)
+int handleIncludeDirective(_LinkedStringList * tokenList)
 {
-	if(!list)
+	if(!tokenList)
+	{
+		DEBUG_PRINT("_LinkedStringList * is NULL\n");
+		return -1;
+	}
+	if(tokenList->length < 2)
+	{
+		DEBUG_PRINT("Not enough tokens in _LinkedStringList *\n");
+		return -1;
+	}
+	
+	_StringNode * node = tokenList->head;
+	// go to the values part
+	if(node) node = node->next;
+	if(node) node = node->next;
+	
+	while(node)
+	{
+		printf("Node: %s\n", node->data);
+		node = node->next;
+	}
+}
+
+int 
+handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
+{
+	if(!fileList)
 	{
 		DEBUG_PRINT("_LinkedStringList * was NULL\n");
 		return -1;
 	}
-	if(!list->head)
+	if(!fileList->head)
 	{
 		DEBUG_PRINT("_LinkedStringList head was NULL\n");
 		return -1;		
+	}
+	if(!symbolTable)
+	{
+		DEBUG_PRINT("_Symbol_Table * was NULL\n");
+		return -1;
 	}
 	
 	int _LookingForEndif = 0;
 	int _ElseEncountered = 0;
 	int _IfEncountered = 0;
 	
+	int isSkip = 0;
+	
 	int _IfNum = 0;
 	int _EndifNum = 0;
+	int tokenNum = 0;
 	
 	// initialize the #if statement stack to push and pop to
-	symbolTable.ifStack = malloc(sizeof(_Symbol_Table));
-	initSymbolTable(symbolTable.ifStack);
-	_Symbol_Table * ifStack = symbolTable.ifStack;
+	_Symbol_Table * ifStack = malloc(sizeof(_Symbol_Table));
+//	symbolTable->ifStack = malloc(sizeof(_Symbol_Table));
+	initSymbolTable(ifStack);
+//	_Symbol_Table * ifStack = symbolTable->ifStack;
 	
-	_StringNode * node = list->head;
+	_StringNode * node = fileList->head;
 	
 	_Symbol_Table directiveList;
 	initSymbolTable(&directiveList);
@@ -803,196 +788,158 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 	while(node)
 	{
 		char * line = node->data;
-
-		char * poundSign = "#";
-		char * directive = strstr(line, poundSign);
-		int directivePos = abs(line - directive);
-	
-		// confirm there is a preprocessor directive on this line
-		if(directive && !partOfString(line, directive))
+		
+		if(line[0] == '#' && (strlen(line) > 1))
 		{
-			// trim whitespaces if there are any
-			if(directivePos > 1)
+			tokenNum++;
+			
+			_LinkedStringList tokenList;
+			initStringList(&tokenList);
+			processToken(line, &tokenList, syntaxTree);
+			
+			_StringNode * token = tokenList.head->next;
+			
+			char * name = token->data;
+			token = token->next;
+			char * value = token ? token->data : NULL;
+
+//			printf("name: %s\n", name);
+//			printf("value: %s\n", value);
+			
+			// if statements first
+			if(!strcmp(name, "endif"))
 			{
-				DEBUG_PRINT("directivePos: %d\n", directivePos);
-				while(isWhiteSpace(*line)) line++; // trim whitespaces
-				if(line != poundSign)
+				if(_LookingForEndif <= 0)
 				{
-					DEBUG_PRINT("Oh no, there was a non-whitespace character before the #include!\n");
+					fprintf(stderr, "\033[1;31merror\e[0m: #endif without #if\n");
 					return -1;
 				}
-			}
-			// parse the preprocessor directive line
-			while(isWhiteSpace(*line)) line++; // trim whitespaces
+				_IfEncountered = false;
+				_ElseEncountered = false;
 
-			bool isValid = false;
-			for(int i = 0; (i < _reservedDirectivesNum); i++)
+				_LookingForEndif--;
+				DEBUG_PRINT("endif token!\n");
+
+				_EndifNum++;
+
+				ifStack->addNode(ifStack, name, value, node);
+				
+				isSkip = false;
+			}
+			else if(!strcmp(name, "ifndef") || !strcmp(name,"ifdef") || !strcmp(name, "if") )
 			{
-				char * ppd = strstr(line, _ReservedDirectives[i]);
-				if(ppd)
+				_LookingForEndif++;
+				_IfEncountered = true;
+				_ElseEncountered = false;
+				_IfNum++;
+				ifStack->addNode(ifStack, name, value, node);
+				
+				if(!strcmp(name, "if"))
 				{
-					isValid = true;
+					// evaluate the if statement ...
+//					printf("tokenlist of if-group start:\n");
 					
-					char * name = _ReservedDirectives[i];
-					char * value = (line+(strlen(_ReservedDirectives[i]))+strlen(poundSign));
-
-					while(isWhiteSpace(*value)) value++;
-					trimWhiteSpaces(value);
-
-					// #ifdef is short for: #if defined(X)
-					// #ifndef is short for: #if !defined(X)
-
-					// if statements first
-					if( (name == _ReservedDirectives[_Ifndef_Token]) || (name == _ReservedDirectives[_Ifdef_Token]) || (name == _ReservedDirectives[_If_Token]) )
-					{
-//						handleIfGroup(list, node, name, value);
-						_LookingForEndif++;
-						_IfEncountered = true;
-						_ElseEncountered = false;
-						_IfNum++;
-						ifStack->addNode(ifStack, name, value, node);
-					}
-					else if(name == _ReservedDirectives[_Endif_Token])
-					{
-						if(_LookingForEndif <= 0)
-						{
-							fprintf(stderr, "\033[1;31merror\e[0m: #endif without #if\n");
-							return -1;
-						}
-						_IfEncountered = false;
-						_ElseEncountered = false;
-
-						_LookingForEndif--;
-						DEBUG_PRINT("endif token!\n");
-
-						_EndifNum++;
-
-						ifStack->addNode(ifStack, name, value, node);
-					}
-					else if(name == _ReservedDirectives[_Define_Token])
-					{
-						while(isWhiteSpace(*ppd)) ppd++;
-						trimWhiteSpaces(ppd);
-						DEBUG_PRINT("ppd: %s\n", ppd);
-						
-						// array has 3 indexes
-						char ** dict = malloc(sizeof(char *) * 3);
-						int dictLength = 0;
-						int wordLength = 0;
-						int wordOffset = 0;
-						int stringLength = strlen(ppd);
-						for(int i = 0; i <= stringLength && dictLength < 3; i++)
-						{
-							if((ppd[i] == ' ') || (i == stringLength))
-							{							
-								wordOffset += wordOffset > 0; // skip past the whitespace
-								wordLength = i - wordOffset;
-								// end of word
-								dict[dictLength] = malloc(sizeof(char) * (wordLength+1));
-								dict[dictLength][0] = '\0';
-								strncpy(dict[dictLength], (ppd+wordOffset), wordLength);
-								dict[dictLength][wordLength] = '\0';
-
-								DEBUG_PRINT("word: %s (%d)\n", dict[dictLength], wordLength);
-
-								wordOffset += wordLength;
-
-								dictLength++;
-							}
-						}
-
-						char * tokenName = dict[1];
-						char * tokenValue = dictLength == 3 ? dict[2] : NULL;
-						
-						DEBUG_PRINT("tokenValue: %s\n", tokenValue ? "DEFINED" : "UNDEFINED");
-						
-						// if symbol already exists, overwrite it with the new value
-						_Symbol * symbol = symbolTable.find(&symbolTable, tokenName);
-						if(symbol)
-						{
-							fprintf(stderr, "\033[95mwarning:\033[0m \"%s\" redefined\n  %d | %s\n    |\n", symbol->name, symbol->filePosition->index, symbol->filePosition->data);
-							if(symbol->value)
-							{
-								free(symbol->value);
-							}
-							if(tokenValue)
-							{
-								DEBUG_PRINT("tokenValue: %s %d\n", tokenValue, (int)strlen(tokenValue));
-								symbol->value = malloc(sizeof(char) * strlen(tokenValue));
-								symbol->value[0] = '\0';
-								strcpy(symbol->value, tokenValue);
-								symbol->value[strlen(tokenValue)] = '\0';
-								DEBUG_PRINT("Re-Define token %s %d!\n", tokenValue, (int)strlen(tokenValue));
-							}
-						}
-						else
-						{
-							DEBUG_PRINT("Define token %s @ %d : %d!\n", tokenName, node->index, tokenValue ? (int)strlen(tokenValue) : -1);
-							symbolTable.addNode(&symbolTable, tokenName, tokenValue, node);							
-						}
-						
-						// free dict after creating symbol
-						for(int i = dictLength-1; i >= 0; i--)
-						{
-							DEBUG_PRINT("FREE: dict[%d] : %s\n", i, dict[i]);
-							free(dict[i]);
-						}
-						free(dict);
-						
-					}							
-					else if(name == _ReservedDirectives[_Pragma_Token])
-					{
-						DEBUG_PRINT("pragma token!\n");
-					}
-					// more token definitions
-					else if(name == _ReservedDirectives[_Undef_Token])
-					{
-						DEBUG_PRINT("undef token!\n");
-					}
-					// conditional
-					else if(name == _ReservedDirectives[_Elif_Token])
-					{
-						if(!_IfEncountered || (_LookingForEndif <= 0))
-						{
-							fprintf(stderr, "\033[1;31merror\e[0m: #elif without #if\n");
-							return -1;
-						}
-						ifStack->addNode(ifStack, name, value, node);
-					}
-					else if(name == _ReservedDirectives[_Else_Token])
-					{
-						if( (!_IfEncountered) || (_LookingForEndif <= 0) || (_ElseEncountered) )
-						{
-							fprintf(stderr, "\033[1;31merror\e[0m: #else without #if or #elif\n");
-							return -1;
-						}
-						_ElseEncountered = true;
-						ifStack->addNode(ifStack, name, value, node);
-					}
-					// special
-					else if(name == _ReservedDirectives[_Include_Token])
-					{
-						// expand include
-					}
-					else if(name == _ReservedDirectives[_Line_Token])
-					{
-						// set __LINE__ macro
-					}
-					else if(name == _ReservedDirectives[_Error_Token])
-					{
-						// throw custom compiler error when reaching this
-					}
+					int size = tokenList.length - 1;
+//					printf("size: %d\n", size);
 					
-					// add all the preprocessor directives to a list
-					directiveList.addNode(&directiveList, name, value, node);
-					break;
+					_StringNode * node = tokenList.head;
+					printf("Node > ");
+					while(node)
+					{
+						printf("'%s', ", node->data);
+						node = node->next;
+					}
+					printf("\n");				
+//					tokenList.print(&tokenList, false);					
 				}
+				
+				// if true
+				isSkip = true;
+				
+				// evaluate if statement
 			}
-			if(!isValid)
+			else if(!strcmp(name, "define"))
 			{
-				fprintf(stderr, "\033[1;31merror:\e[0m invalid preprocessing directive: %s\n", line);
+				DEBUG_PRINT("Define: %s\n", value ? (line+strlen(name)+2) : value);
+				// if symbol already exists, overwrite it with the new value
+				_Symbol * symbol = symbolTable->find(symbolTable, name);
+				if(symbol)
+				{
+					fprintf(stderr, "\033[95mwarning:\033[0m \"%s\" redefined\n  %d | %s\n    |\n", symbol->name, symbol->filePosition->index, symbol->filePosition->data);
+					if(symbol->value)
+					{
+						free(symbol->value);
+					}
+					if(value)
+					{
+						DEBUG_PRINT("tokenValue: %s %d\n", value, (int)strlen(value));
+						symbol->value = malloc(sizeof(char) * strlen(value)+1);
+						symbol->value[0] = '\0';
+						strncpy(symbol->value, value, strlen(value));
+						symbol->value[strlen(value)] = '\0';
+						DEBUG_PRINT("Re-Define token %s %d!\n", value, (int)strlen(value));
+					}
+				}
+				else
+				{
+					DEBUG_PRINT("Define token %s @ %d : %d!\n", name, node->index, value ? (int)strlen(value) : -1);
+					symbolTable->addNode(symbolTable, name, value, node);							
+				}
+				
+			}
+			else if(!strcmp(name, "pragma"))
+			{
+				DEBUG_PRINT("pragma token!\n");
+			}
+			// more token definitions
+			else if(!strcmp(name, "undef"))
+			{
+				DEBUG_PRINT("undef token!\n");
+			}
+			// conditional
+			else if(!strcmp(name, "elif"))
+			{
+				if(!_IfEncountered || (_LookingForEndif <= 0))
+				{
+					fprintf(stderr, "\033[1;31merror\e[0m: #elif without #if\n");
+					return -1;
+				}
+				ifStack->addNode(ifStack, name, value, node);
+			}
+			else if(!strcmp(name, "else"))
+			{
+				if( (!_IfEncountered) || (_LookingForEndif <= 0) || (_ElseEncountered) )
+				{
+					fprintf(stderr, "\033[1;31merror\e[0m: #else without #if or #elif\n");
+					return -1;
+				}
+				_ElseEncountered = true;
+				ifStack->addNode(ifStack, name, value, node);
+			}
+			// special
+			else if(!strcmp(name, "include"))
+			{
+				// expand include
+//				printf("Including file:\n");
+//				handleIncludeDirective(&tokenList);
+			}
+			else if(!strcmp(name, "line"))
+			{
+				// set __LINE__ macro
+			}
+			else if(!strcmp(name, "error"))
+			{
+				// throw custom compiler error when reaching this
+			}
+			// Could not match any of the valid preprocessor directives -- Error!
+			else
+			{
+				fprintf(stderr, "\033[1;31merror:\e[0m invalid preprocessing directive: %s;\n", line);
 				return -1;
-			}			
+			}
+			
+			// add all the preprocessor directives to a list
+			directiveList.addNode(&directiveList, name, value ? (line+strlen(name)+2) : value, node);
 		}
 		node = node->next;
 	}
@@ -1016,13 +963,13 @@ handlePreprocessorDirectives(_LinkedStringList * list)
 	}
 	
 //	printf("\nSymbol table:\n");
-//	symbolTable.print(&symbolTable);
+//	symbolTable->print(symbolTable);
 	
 	DEBUG_PRINT("\nDirective list:\n");
 //	directiveList.print(&directiveList);
-	handleIfGroups(&directiveList, directiveList.head);
+//	handleIfGroups(&directiveList, fileList, symbolTable, directiveList.head);
 
-//	printf("\nifstack print:\n");
+	DEBUG_PRINT("\nifstack print:\n");
 //	ifStack->print(ifStack);
 		
 	return 0;
@@ -1149,9 +1096,6 @@ expandIncludes(_LinkedStringList * list)
 	return 0;
 }
 
-struct _SyntaxTreeNode typedef _SyntaxTreeNode;
-struct _SyntaxTree typedef _SyntaxTree;
-
 int addSyntaxTreeNode(_SyntaxTree * tree, char * str);
 int searchSyntaxTreeNode(_SyntaxTree * tree, char * string);
 
@@ -1183,6 +1127,8 @@ int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size
 	node->data = data;
 	node->children = NULL;
 	
+	DEBUG_PRINT("_InitSyntaxTreeNode '%c' isLeaf=%s\n", data, isLeaf ? "true" : "false");
+	
 	return 0;
 }
 
@@ -1205,6 +1151,8 @@ int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 
 	int listSize = tree->size;
 	bool isFound = *list == NULL ? false : true;
+	bool isLeaf = false;
+	int returnIndex = 0;
 	while(isFound && (index < length))
 	{
 		isFound = false;
@@ -1216,11 +1164,20 @@ int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 				DEBUG_PRINT("'%c', ", (*list)[child_i]->data);
 				if((*list)[child_i]->data == string[index])
 				{
+					index += 1;
+					
 					DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
 					_SyntaxTreeNode * node = (*list)[child_i];
+					isLeaf = node->isLeaf;
 					list = &node->children;
 					listSize = node->size;
 					isFound = true;
+					
+					if(isLeaf)
+					{
+						returnIndex = index;
+					}
+					
 					break;
 				}
 			}
@@ -1229,13 +1186,11 @@ int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		{
 			DEBUG_PRINT("\n\t\tCould not find a match!\n");
 		}
-		else
-		{
-			index++;
-		}
 	}
 	
-	return index;
+//	if(returnIndex) printf("ReturnIndex: %d\n", returnIndex);
+	
+	return returnIndex;
 }
 
 int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
@@ -1262,7 +1217,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
 
-		_initSyntaxTreeNode(((*list)[0]), index==(length-1), 1, 0, string[index]);
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index]);
 
 		node = (*list)[0];
 		list = &node->children;
@@ -1339,7 +1294,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		DEBUG_PRINT("\tCould not match letter '%c' with node at depth %d -- making list bigger (%d) and adding letter '%c'... \n", string[index], index, listSize, string[index]);
 		(*list) = realloc((*list), sizeof(_SyntaxTreeNode*) * listSize);
 		(*list)[listSize-1] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode((*list)[listSize-1], index==(index-1), index, 0, string[index]);
+		_initSyntaxTreeNode((*list)[listSize-1], index>=(index-1), index, 0, string[index]);		
 		list = &(*list)[listSize-1]->children;
 		index++;
 	}
@@ -1352,7 +1307,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode(((*list)[0]), index==(length-1), 1, 0, string[index]);
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index]);
 		(*list)[0]->size = 1;
 		list = &(*list)[0]->children;
 		
@@ -1369,7 +1324,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	return 0;
 }
 
-_SyntaxTree syntaxTree = 
+_SyntaxTree syntaxTree_PreprocessorDirectives =
 {
 	.size = 0,
 	.children = NULL,
@@ -1379,24 +1334,29 @@ _SyntaxTree syntaxTree =
 
 char * _Punctuation[] = 
 {
-	".", ",", ";", "#",
+	".", ",", ";", ":",
 	"(", ")", "{", "}",
-	"[", "]", "<", ">",
+	"[", "]", "'", "\"",
 	// operators
 	"!", "+", "-", "=",
 	"<", ">", "*", "/",
 	"&", "|", "%", "^",
-	"~"
-};
-char * _Operators[] =
-{
+	"~", "#",
+	// double operators
 	"--", "++", "||", "&&", "<<", ">>", "##", "->",
 	"-=", "+=", "|=", "&=", "<=", ">=", "==", "!=",
 	"^=", "*=", "/=", "%="
 };
 
+char * _PreprocessorIdentifiers[] =
+{
+	"include", "ifndef", "pragma", "define", "endif", 
+	"ifdef", "undef", "error", "elif", "else", "line", 
+	"if", "__LINE__", "__FILE__"
+};
+
 int
-processToken(char * string)
+processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxTree)
 {
 	if(!string)
 	{
@@ -1416,32 +1376,71 @@ processToken(char * string)
 		return -1;
 	}
 	
-//	int length = strlen(string);
+	char * ogString = string;
+	
 	int index = 0;
 	
 	DEBUG_PRINT("========================\n");
 	DEBUG_PRINT("string: '%s'\n", string);
-	char token[strlen(string)];
+	DEBUG_PRINT("strlen: %d\n", (int)strlen(string));
+	char token[strlen(string)+1];
 	token[0] = '\0';
-
+	
+	int test=7;
+	
+	bool isNumber = false;
+	
 	DEBUG_PRINT("> ");
+	
+	int i = 0;
 	while(*string)
 	{
-		int i = syntaxTree.search(&syntaxTree, string);
-		if(i > 0)
+		// seperate tokens based on whitespace
+		if(*string == ' ')
 		{
-			if(index>0)
+			if(index > 0)
 			{
 				token[index] = '\0';
-				DEBUG_PRINT("IDENT:%s ", token);
-				_Tokens.addNode(&_Tokens, token);
+				if(isNumber)
+				{
+					DEBUG_PRINT("NUMBER: %s (%s);\n", token, ogString);
+					isNumber = false;
+				}
+				else
+				{
+					DEBUG_PRINT("IDENT: %s;\n", token);
+				}
+				tokenList->addNode(tokenList, token);
+
+				token[0] = '\0';
+				index = 0;
 			}
+			string++;
+			continue;
+		}
+		else if((i = syntaxTree->search(syntaxTree, string)) > 0)
+		{
+			if(index > 0)
+			{
+				token[index] = '\0';
+				if(isNumber)
+				{
+					DEBUG_PRINT("NUMBER: %s\n", token);
+					isNumber = false;
+				}
+				else
+				{
+					DEBUG_PRINT("IDENT: %s\n", token);					
+				}
+				tokenList->addNode(tokenList, token);
+			}
+//			i+=1;
 			token[0] = '\0';
 			strncpy(token, string, i);
 			token[i] = '\0';
 
-			DEBUG_PRINT("PUNC:%s ", token);
-			_Tokens.addNode(&_Tokens, token);
+			DEBUG_PRINT("PUNC: %s\n", token);
+			tokenList->addNode(tokenList, token);
 			token[0] = '\0';
 			
 			string += i;
@@ -1449,14 +1448,41 @@ processToken(char * string)
 		}
 		else
 		{
-			token[index++] = *string++;			
-			if(!*string && strlen(token))
+			// asign letter to token string
+			int num = (*string) - '0';
+			
+//			printf("num: %c %d\n", *string, num);
+			
+			token[index] = *string++;
+
+			if(index == 0)
+			{
+				if((num >= 0) && (num <= 9))
+				{
+					DEBUG_PRINT("num: %c : full_line=%s\n", token[0], ogString);
+					isNumber = true;
+				}
+			}
+			
+			index++;
+			
+			if((*string == '\0') && strlen(token))
 			{
 				token[index] = '\0';
-				DEBUG_PRINT("IDENT:%s ", token);
-				_Tokens.addNode(&_Tokens, token);
+				if(isNumber)
+				{
+					DEBUG_PRINT("NUMBER: %s\n", token);
+					isNumber = false;
+				}
+				else
+				{
+					DEBUG_PRINT("IDENT: %s\n", token);
+				}
+				tokenList->addNode(tokenList, token);
+//				printf("addnode: %s\n", token);
+				index = 0;
+				token[index] = '\0';
 			}
-
 		}
 	}
 	DEBUG_PRINT("\n");
@@ -1464,17 +1490,98 @@ processToken(char * string)
 	return 0;
 }
 
+int
+lineTokenization(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxTree)
+{
+	int length = strlen(string);
+	char token[length+1];
+	token[0] = '\0';
+
+	int index = 0;
+	bool isStringLiteral = false;
+		
+	// clean the string ...
+	while(isWhiteSpace(*string)) string++;
+	trimWhiteSpaces(string);
+		
+	DEBUG_PRINT("> %s\n", string);
+	for(int i = 0; i < length; i++)
+	{
+		token[index] = string[i];
+		index++;
+		
+		if(!isStringLiteral)
+		{
+			if((i==length && strlen(token)) || (isWhiteSpace(string[i]) && (strlen(token) > 0)) )
+			{
+				// terminate token string
+				token[index] = '\0';
+				if(strlen(token))
+				{
+					processToken(token, tokenList, syntaxTree);
+				}
+				index = 0;
+				token[0] = '\0';
+			}
+		}
+		
+		if(string[i] == '\"')
+		{
+			// make sure it is not escaped
+			if( (i == 0) || ((string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) ) )
+			{
+				// closing bracket -- tokenize
+				if(isStringLiteral)
+				{
+					isStringLiteral = false;
+					token[index] = '\0';
+					if(strlen(token))
+					{
+						printf("> STRING:%s\n", token);
+						tokenList->addNode(tokenList, token);
+					}				
+					token[0] = '\0'; 
+					index = 0;
+				}
+				else
+				{
+					// encountered start of string literal, make everything before it its own token
+					if((index > 0) && (i > 0) && strlen(token))
+					{								
+						index--;
+						token[index] = '\0';
+						if(strlen(token))
+						{
+							processToken(token, tokenList, syntaxTree);
+						}
+						// make beginning of string literal
+						token[0] = string[i];
+						token[1] = '\0';
+						index = 1;
+					}
+					isStringLiteral = true;
+				}
+			} // check whether character is escaped
+		} // check for start/end ' " ' of string literal
+	} // for
+	
+	return 0;
+}
 
 int
-tokenization(_LinkedStringList * list)
+tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTree * syntaxTree)
 {	
 	_StringNode * node = list->head;
+	
+	int tokenNum = 0;
 	while(node)
 	{
 		char * string = node->data;
 		int length = strlen(string);
-		char token[length];
+		char token[length+1];
 		token[0] = '\0';
+
+		// if its a preprocessor directive ...
 
 		int index = 0;
 		
@@ -1483,112 +1590,138 @@ tokenization(_LinkedStringList * list)
 		// clean the string ...
 		while(isWhiteSpace(*string)) string++;
 		trimWhiteSpaces(string);
-	
-		for(int i = 0; i <= length; i++)
+		
+		// if this is a preprocessor directive ...
+		if(string && strlen(string) && string[0] == '#')
 		{
-			token[index] = string[i];
-			index++;
-			
-			if(!isStringLiteral)
+			// just add the whole thing as is for later unpacking ...
+//			printf("%s -- index: %d\n", string, node->index);
+			tokenList->addNode(tokenList, string);
+			tokenNum++;
+		}
+		else
+		{
+			DEBUG_PRINT("> %s\n", string);
+			for(int i = 0; i < length; i++)
 			{
-				if((i==length && strlen(token)) || (isWhiteSpace(string[i]) && (strlen(token) > 0)) )
+				token[index] = string[i];
+				index++;
+				
+				if(!isStringLiteral)
 				{
-					// terminate token string
-					token[index] = '\0';
-					
-					if(strlen(token))
+//					printf("(i(%d)==(length-1)(%d) && strlen(token)(%d)) == %d\n", i, length, strlen(token), ((i==(length-1)) && strlen(token)));
+//					printf("(isWhiteSpace(string[i(%d)])(%d) && strlen(token)(%d)) == %d\n", i, isWhiteSpace(string[i]), strlen(token), (isWhiteSpace(string[i]) && strlen(token)));
+					if(((i==(length-1)) && strlen(token)) || (isWhiteSpace(string[i]) && strlen(token)) )
 					{
-						processToken(token);
-					}
-
-					index = 0;
-					token[0] = '\0';
-				}
-
-
-			}
-			
-			if(string[i] == '\"')
-			{
-				// make sure it is not escaped
-				if( (i == 0) || ((string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) ) )
-				{
-					// closing bracket -- tokenize
-					if(isStringLiteral)
-					{
-						isStringLiteral = false;
+						// terminate token string
 						token[index] = '\0';
+//						printf("token: %s\n", token);
 						if(strlen(token))
 						{
-							DEBUG_PRINT("> STRING:%s\n", token);
-							_Tokens.addNode(&_Tokens, token);
+							processToken(token, tokenList, syntaxTree);
 						}
-						
-						token[0] = '\0'; 
 						index = 0;
-					}
-					else
-					{
-						// encountered start of string literal, make everything before it its own token
-						if((i > 0) && strlen(token))
-						{
-							index--;
-							token[index] = '\0';
-
-							if(strlen(token))
-							{
-								processToken(token);
-							}
-							// make beginning of string literal
-							token[0] = string[i];
-							token[1] = '\0';
-							index = 1;
-						}
-						
-						isStringLiteral = true;
+						token[0] = '\0';
 					}
 				}
-			}
-		}
+				
+				if(string[i] == '\"')
+				{
+					// make sure it is not escaped
+					if( (i == 0) || ((string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) ) )
+					{
+						// closing bracket -- tokenize
+						if(isStringLiteral)
+						{
+							isStringLiteral = false;
+							token[index] = '\0';
+							if(strlen(token))
+							{
+								DEBUG_PRINT("> STRING:%s\n", token);
+								tokenList->addNode(tokenList, token);
+							}				
+							token[0] = '\0'; 
+							index = 0;
+						}
+						else
+						{
+							// encountered start of string literal, make everything before it its own token
+							if((index > 0) && (i > 0) && strlen(token))
+							{								
+								index--;
+								token[index] = '\0';
+								if(strlen(token))
+								{
+									processToken(token, tokenList, syntaxTree);
+								}
+								// make beginning of string literal
+								token[0] = string[i];
+								token[1] = '\0';
+								index = 1;
+							}
+							isStringLiteral = true;
+						}
+					} // check whether character is escaped
+				} // check for start/end ' " ' of string literal
+			} // for
+		} // else -- not a # directive
 		node = node->next;
-	}
+	} // for each char in char *
+
+	DEBUG_PRINT("tokenization directive num: %d\n", tokenNum);
+
 	return 0;
 }
 
 int
 preprocess(const char * filePATH, const char * outPATH)
 {
-	readFromFile(filePATH);
+	_SyntaxTree * syntaxTree = malloc(sizeof(_SyntaxTree));
+	syntaxTree->size = 0;
+	syntaxTree->children = NULL;
+	syntaxTree->add = addSyntaxTreeNode;
+	syntaxTree->search = searchSyntaxTreeNode;
+	
+	_LinkedStringList * _FileLines = malloc(sizeof(_LinkedStringList));
+	initStringList(_FileLines);
+	
+	_Symbol_Table * _SymbolTable = malloc(sizeof(_Symbol_Table));
+	initSymbolTable(_SymbolTable);
 
-	stitchTogether(&_FileLines);
-	filterOutComments(&_FileLines);
+	readFromFile(filePATH, _FileLines);
+	stitchTogether(_FileLines);
+	filterOutComments(_FileLines);
 
 	int len = sizeof(_Punctuation) / sizeof(char) / sizeof(char*); 
 	printf("Punctuation:\n");
 	for(int i = 0; i < len; i++) 
 	{
 		printf("%s ", _Punctuation[i]);
-		addSyntaxTreeNode(&syntaxTree, _Punctuation[i]);
+		addSyntaxTreeNode(syntaxTree, _Punctuation[i]);
 	}
-	//
 	printf("\n");
-	len = sizeof(_Operators) / sizeof(char) / sizeof(char*); 
-	printf("Operators:\n");
+	
+	printf("Numbers: %d - %d\n", '0' - '0', '9' - '0');
+	printf("\n");
+	
+	len = sizeof(_PreprocessorIdentifiers) / sizeof(char) / sizeof(char*);
+	printf("Preprocessor identifiers:\n");
 	for(int i = 0; i < len; i++)
 	{
-		printf("%s ", _Operators[i]);
-		addSyntaxTreeNode(&syntaxTree, _Operators[i]);
+		printf("%s ", _PreprocessorIdentifiers[i]);
+		syntaxTree_PreprocessorDirectives.add(&syntaxTree_PreprocessorDirectives, _PreprocessorIdentifiers[i]);
 	}
 	printf("\n");
-	
+
+	_LinkedStringList * _Tokens = malloc(sizeof(_LinkedStringList));
+	initStringList(_Tokens);
+
 	// tokenization
-	tokenization(&_FileLines);
-	printStringListSimple(&_Tokens);
-	
-//	handlePreprocessorDirectives(&_FileLines);
+	tokenization(_FileLines, _Tokens, syntaxTree);	
+	handlePreprocessorDirectives(_FileLines, syntaxTree, _SymbolTable);
 //	expandIncludes(&_FileLines);
 	
-//	_FileLines.print(&_FileLines, true);
+//	_FileLines->print(_FileLines, false);
 
 	return 0;
 }

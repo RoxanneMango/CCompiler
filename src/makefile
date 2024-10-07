@@ -1,7 +1,7 @@
 .PHONY: all debug clean build build-dir bin-dir
 
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -O0 -g
 
 C_OBJECTS = preprocessor.o string_utils.o symbol_table.o
 EXEC = preprocessor
