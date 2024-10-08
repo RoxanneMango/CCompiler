@@ -20,7 +20,20 @@ struct _LinkedStringList typedef _LinkedStringList;
 struct _StringNode;
 struct _LinkedStringList;
 
-int addStringNode(_LinkedStringList * list, const char * string);
+enum TokenType
+{
+	IdentifierToken = 90, // dark gray
+	PunctuationToken = 94, // blue
+	OperatorToken = 96, // cyan
+	ComparisonToken = 91, // red
+	AssignmentToken = 95, // magenta
+	NumberToken = 92, // green 
+	StringToken = 33, // dark yellow
+	PreprocessorToken = 35 // dark magenta
+};
+typedef enum TokenType TokenType;
+
+int addStringNode(_LinkedStringList * list, const char * string, TokenType type);
 int removeStringNode(_LinkedStringList * list, _StringNode * node);
 int printStringList(_LinkedStringList * list, bool prettyPrint);
 int printStringListSimple(_LinkedStringList * list);
@@ -38,6 +51,8 @@ struct _StringNode
 	int length;
 	char * data;
 	
+	TokenType type;
+	
 	struct _StringNode * previous;
 	struct _StringNode * next;
 };
@@ -47,7 +62,7 @@ struct _LinkedStringList
 	unsigned int length;
 	_StringNode * head;
 	_StringNode * tail;
-	int(*addNode)(_LinkedStringList * list, const char * string);
+	int(*addNode)(_LinkedStringList * list, const char * string, TokenType type);
 	int(*removeNode)(_LinkedStringList * list, _StringNode * node);
 	int(*print)(_LinkedStringList * list, bool prettyPrint);
 };

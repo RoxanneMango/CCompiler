@@ -478,7 +478,7 @@ readFromFile(const char * filePATH, _LinkedStringList * fileList)
 		// Check if line contains '\n', if yes process the line of text
 		if( (line[len_used - 1] == '\n') )
 		{
-			fileList->addNode(fileList, line);
+			fileList->addNode(fileList, line, 0);
 			// empty the line buffer
 			line[0] = '\0';
 		}
@@ -487,7 +487,7 @@ readFromFile(const char * filePATH, _LinkedStringList * fileList)
 	// add the last line
 	if(line && strlen(line))
 	{
-		fileList->addNode(fileList, line);
+		fileList->addNode(fileList, line, 0);
 	}
 	
 	fclose(FP);
@@ -536,7 +536,7 @@ getFilesFromDirectory(_LinkedStringList * list, const char * PATH)
 	{
 		if(strcmp(dir->d_name, ".") && strcmp(dir->d_name, ".."))
 		{
-			list->addNode(list, dir->d_name);
+			list->addNode(list, dir->d_name, 0);
 //			printf("-> %s\n", dir->d_name);
 		}
 	}
@@ -741,24 +741,82 @@ int handleIncludeDirective(_LinkedStringList * tokenList)
 		printf("Node: %s\n", node->data);
 		node = node->next;
 	}
+	
+	return 0;
+}
+
+int
+evaluateExpression(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
+{
+	// error checking
+	if(!tokenList)
+	{	DEBUG_PRINT("_LinkedStringList * was NULL\n"); 
+		return -1; 
+	}
+	if(!tokenList->head) 
+	{	DEBUG_PRINT("_LinkedStringList head was NULL\n"); 
+		return -1;
+	}
+	if(!syntaxTree)
+	{	DEBUG_PRINT("_SyntaxTree * was NULL\n");
+		return -1;
+	}
+	if(!symbolTable)
+	{	DEBUG_PRINT("_Symbol_Table * was NULL\n");
+		return -1;
+	}
+
+	bool isDefinedKeyword = false;
+
+	_StringNode * node = tokenList->head;
+	printf("Node > ");
+	while(node)
+	{
+		if(node->type == IdentifierToken)
+		{
+			// find in symbolTable
+			if(!strcmp(node->data, "defined"))
+			{
+				isDefinedKeyword = true;
+			}
+			else if(isDefinedKeyword)
+			{
+				
+			}
+			printf("'\033[94m%s\033[0m', ", node->data);
+		}
+		else if(node->type == PunctuationToken)
+		{
+			printf("'\033[95m%s\033[0m', ", node->data);
+		}
+		else if(node->type == NumberToken)
+		{
+			printf("'\033[92m%s\033[0m', ", node->data);
+		}
+		node = node->next;
+	}
+	printf("\n");
+	
+	return 0;
 }
 
 int 
 handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
 {
 	if(!fileList)
-	{
-		DEBUG_PRINT("_LinkedStringList * was NULL\n");
+	{	DEBUG_PRINT("_LinkedStringList * was NULL\n");
 		return -1;
 	}
 	if(!fileList->head)
-	{
-		DEBUG_PRINT("_LinkedStringList head was NULL\n");
+	{	DEBUG_PRINT("_LinkedStringList head was NULL\n");
 		return -1;		
 	}
 	if(!symbolTable)
-	{
-		DEBUG_PRINT("_Symbol_Table * was NULL\n");
+	{	DEBUG_PRINT("_Symbol_Table * was NULL\n");
+		return -1;
+	}
+	if(!syntaxTree)
+	{	DEBUG_PRINT("_SyntaxTree * was NULL\n");
 		return -1;
 	}
 	
@@ -838,19 +896,11 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 				{
 					// evaluate the if statement ...
 //					printf("tokenlist of if-group start:\n");
-					
-					int size = tokenList.length - 1;
-//					printf("size: %d\n", size);
-					
-					_StringNode * node = tokenList.head;
-					printf("Node > ");
-					while(node)
-					{
-						printf("'%s', ", node->data);
-						node = node->next;
-					}
-					printf("\n");				
-//					tokenList.print(&tokenList, false);					
+
+					// remove '#' and 'if' so only the statement gets forwarded for evaluation
+					tokenList.removeNode(&tokenList, tokenList.head);
+					tokenList.removeNode(&tokenList, tokenList.head);
+					evaluateExpression(&tokenList, syntaxTree, symbolTable);
 				}
 				
 				// if true
@@ -862,7 +912,7 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 			{
 				DEBUG_PRINT("Define: %s\n", value ? (line+strlen(name)+2) : value);
 				// if symbol already exists, overwrite it with the new value
-				_Symbol * symbol = symbolTable->find(symbolTable, name);
+				_Symbol * symbol = symbolTable->find(symbolTable, value);
 				if(symbol)
 				{
 					fprintf(stderr, "\033[95mwarning:\033[0m \"%s\" redefined\n  %d | %s\n    |\n", symbol->name, symbol->filePosition->index, symbol->filePosition->data);
@@ -1248,8 +1298,8 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
 		for(int child_i = 0; child_i < listSize; child_i++)
 		{
-			DEBUG_PRINT("'%c', ", (*list)[child_i]->data);// getchar();
-			if((*list)[child_i]->data == string[index])
+			DEBUG_PRINT("'%c', ", *list ? (*list)[child_i]->data : 'X'); //getchar();
+			if(*list && (*list)[child_i]->data == string[index])
 			{
 				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
 				node = (*list)[child_i];
@@ -1341,11 +1391,11 @@ char * _Punctuation[] =
 	"!", "+", "-", "=",
 	"<", ">", "*", "/",
 	"&", "|", "%", "^",
-	"~", "#",
+	"~", "#", "?",
 	// double operators
 	"--", "++", "||", "&&", "<<", ">>", "##", "->",
 	"-=", "+=", "|=", "&=", "<=", ">=", "==", "!=",
-	"^=", "*=", "/=", "%="
+	"^=", "*=", "/=", "%=", "<<=", ">>="
 };
 
 char * _PreprocessorIdentifiers[] =
@@ -1404,13 +1454,14 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 				if(isNumber)
 				{
 					DEBUG_PRINT("NUMBER: %s (%s);\n", token, ogString);
+					tokenList->addNode(tokenList, token, NumberToken);
 					isNumber = false;
 				}
 				else
 				{
 					DEBUG_PRINT("IDENT: %s;\n", token);
+					tokenList->addNode(tokenList, token, IdentifierToken);
 				}
-				tokenList->addNode(tokenList, token);
 
 				token[0] = '\0';
 				index = 0;
@@ -1426,13 +1477,14 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 				if(isNumber)
 				{
 					DEBUG_PRINT("NUMBER: %s\n", token);
+					tokenList->addNode(tokenList, token, NumberToken);
 					isNumber = false;
 				}
 				else
 				{
-					DEBUG_PRINT("IDENT: %s\n", token);					
+					DEBUG_PRINT("IDENT: %s\n", token);
+					tokenList->addNode(tokenList, token, IdentifierToken);
 				}
-				tokenList->addNode(tokenList, token);
 			}
 //			i+=1;
 			token[0] = '\0';
@@ -1440,7 +1492,7 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 			token[i] = '\0';
 
 			DEBUG_PRINT("PUNC: %s\n", token);
-			tokenList->addNode(tokenList, token);
+			tokenList->addNode(tokenList, token, PunctuationToken);
 			token[0] = '\0';
 			
 			string += i;
@@ -1472,14 +1524,14 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 				if(isNumber)
 				{
 					DEBUG_PRINT("NUMBER: %s\n", token);
+					tokenList->addNode(tokenList, token, NumberToken);
 					isNumber = false;
 				}
 				else
 				{
 					DEBUG_PRINT("IDENT: %s\n", token);
+					tokenList->addNode(tokenList, token, IdentifierToken);
 				}
-				tokenList->addNode(tokenList, token);
-//				printf("addnode: %s\n", token);
 				index = 0;
 				token[index] = '\0';
 			}
@@ -1538,7 +1590,7 @@ lineTokenization(char * string, _LinkedStringList * tokenList, _SyntaxTree * syn
 					if(strlen(token))
 					{
 						printf("> STRING:%s\n", token);
-						tokenList->addNode(tokenList, token);
+						tokenList->addNode(tokenList, token, StringToken);
 					}				
 					token[0] = '\0'; 
 					index = 0;
@@ -1596,7 +1648,7 @@ tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTre
 		{
 			// just add the whole thing as is for later unpacking ...
 //			printf("%s -- index: %d\n", string, node->index);
-			tokenList->addNode(tokenList, string);
+			tokenList->addNode(tokenList, string, PreprocessorToken);
 			tokenNum++;
 		}
 		else
@@ -1638,7 +1690,7 @@ tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTre
 							if(strlen(token))
 							{
 								DEBUG_PRINT("> STRING:%s\n", token);
-								tokenList->addNode(tokenList, token);
+								tokenList->addNode(tokenList, token, StringToken);
 							}				
 							token[0] = '\0'; 
 							index = 0;
@@ -1721,6 +1773,7 @@ preprocess(const char * filePATH, const char * outPATH)
 	handlePreprocessorDirectives(_FileLines, syntaxTree, _SymbolTable);
 //	expandIncludes(&_FileLines);
 	
+	_Tokens->print(_Tokens, false);
 //	_FileLines->print(_FileLines, false);
 
 	return 0;
