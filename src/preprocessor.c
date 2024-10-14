@@ -19,6 +19,9 @@
 
 #define X true
 
+#if (X)
+#endif
+
 #if X+U == true
 #include "string_utils.h"
 #include <string.h>
@@ -745,8 +748,13 @@ int handleIncludeDirective(_LinkedStringList * tokenList)
 	return 0;
 }
 
+int evaluateExpression(_StringNode * A, _StringNode * operator, _StringNode * B)
+{
+	
+}
+
 int
-evaluateExpression(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
+evaluateExpressions(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
 {	
 	// error checking
 	if(!tokenList)
@@ -766,53 +774,109 @@ evaluateExpression(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Sym
 		return -1;
 	}
 
+	// static analysis to make sure there is an even number of opening and closing braces
+	int braceEquilibrium = 0;
+	_StringNode * node = tokenList->head;
+	while(node)
+	{
+		if(!strcmp(node->data, "(")) braceEquilibrium++;
+		else if(!strcmp(node->data, ")")) braceEquilibrium--;
+		node = node->next;
+	}
+	if(braceEquilibrium != 0)
+	{
+		if(braceEquilibrium > 0) 	  { printf("Unterminated '('\n"); }
+		else if(braceEquilibrium < 0) { printf("')' without opening brace\n"); }
+		return -1;
+	}
+
 	bool isDefinedKeyword = false;
 	bool isValidState = true;
 	bool isBraceOpened = false;
 	
-	int braceEncapsulationLevel = 0;
+	bool hasBraceOpen = false;
 
-	_StringNode * node = tokenList->head;
+	int encapTokenListInd = 0;
+	int encapTokenListInc = 5;
+	int encapTokenListMax = 5;
+	_LinkedStringList * encapTokenList = calloc(sizeof(_LinkedStringList), encapTokenListMax);
+	
+	int result = false;
+
+
+	_StringNode * leftOperand;
+	_StringNode * operator;
+	_StringNode * rightOperand;
+
+	TokenType prevTokenType = -1;
+
+	node = tokenList->head;
 	printf("Node > ");
 	tokenList->print(tokenList, false);
 	while(node)
 	{
+/*
+		if(!strcmp(node->data, "("))
+		{
+			hasBraceOpen = true;
+		}
+		else if(strcmp(node->data, ")"))
+		{
+			if(!hasBraceOpen)
+			{
+				DEBUG_PRINT("There was no closing brace!");
+				return -1;						
+			}
+			else
+			{
+				hasBraceOpen = false;
+			}
+		}
+*/
+		
 		if(node->type == IdentifierToken)
 		{
+			if(prevTokenType == IdentifierToken)
+			{
+				ERROR_PRINT("missing binary operator before token \"%s\"", node->data);
+				return -1;
+			}
+			
+			
 			// find in symbolTable
 			if(!strcmp(node->data, "defined"))
 			{
 				// find identifier or open brace punctuation
 				node = node->next;
 				if(!node) return -1;
+			}
+			if(!strcmp(node->data, "("))
+			{
+				hasBraceOpen = true;
+				node = node->next;
+				if(!node) return -1;
+			}			
+			_Symbol * symbol = symbolTable->find(symbolTable, node->data);
+			if(symbol)
+			{
+				printf("symbol was found: %s : %s\n", symbol->name, symbol->value ? symbol->value : "false");
+				leftOperand = symbol;
+				result = true;
+			}
+			else
+			{
+				printf("symbol not found! (%s)\n", node->data);
+				result = false;
+			}
+			if(hasBraceOpen)
+			{
+				node = node->next;
+				if(!node) return -1;
 
-				bool hasBraceOpen = false;
-				if(!strcmp(node->data, "("))
+				if(strcmp(node->data, ")"))
 				{
-					hasBraceOpen = true;
-					node = node->next;
-					if(!node) return -1;
-				}
-			
-				_Symbol * symbol = symbolTable->find(symbolTable, node->data);
-				if(symbol)
-				{
-					printf("symbol was found: %s : %s\n", symbol->name, symbol->value ? symbol->value : "false");
-				}
-				else
-				{
-					printf("symbol not found! (%s)\n", node->data);
-				}
-				
-				if(hasBraceOpen)
-				{
-					node = node->next;
-					if(!node) return -1;
-					if(strcmp(node->data, ")"))
-					{
-						DEBUG_PRINT("There was no closing brace!");
-						return -1;
-					}
+					DEBUG_PRINT("There was no closing brace!");
+					return -1;
 				}
 			}
 		}
@@ -824,16 +888,15 @@ evaluateExpression(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Sym
 		{
 			
 		}
+		else // operators, comparators, assignment
+		{
+//			printf("%s", node->data);
+		}
+		prevTokenType = node->type;
 		node = node->next;
 	}
-	
-	if(braceEncapsulationLevel != 0)
-	{
-		printf("Unequal amount of braces!");
-	}
-//	printf("\n");
 		
-	return 0;
+	return result;
 }
 
 int 
@@ -945,7 +1008,8 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 					// remove '#' and 'if' so only the statement gets forwarded for evaluation
 					tokenList.removeNode(&tokenList, tokenList.head);
 					tokenList.removeNode(&tokenList, tokenList.head);
-					evaluateExpression(&tokenList, syntaxTree, symbolTable);
+					int result = evaluateExpressions(&tokenList, syntaxTree, symbolTable);
+					printf("condition result: %s\n", result==1 ? "true" : "false");
 				}
 				
 				// if true

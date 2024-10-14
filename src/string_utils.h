@@ -13,6 +13,7 @@
 #define DEBUG 1
 #endif
 #define DEBUG_PRINT(format, ...) if(DEBUG) printf(format, ##__VA_ARGS__)
+#define ERROR_PRINT(format, ...) fprintf(stderr, "\033[1;31merror:\e[0m "); fprintf(stderr, format, ##__VA_ARGS__)
 
 struct _StringNode typedef _StringNode;
 struct _LinkedStringList typedef _LinkedStringList;
