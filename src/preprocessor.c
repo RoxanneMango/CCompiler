@@ -124,6 +124,8 @@ ng?"
 * End of search list.
 */
 
+int processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxTree);
+
 static const int _StdHeaderLocationNum = 4;
 char * _StandardLibraryHeaderLocations[] = 
 {
@@ -860,7 +862,7 @@ evaluateExpressions(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Sy
 			if(symbol)
 			{
 				printf("symbol was found: %s : %s\n", symbol->name, symbol->value ? symbol->value : "false");
-				leftOperand = symbol;
+				leftOperand = symbol->filePosition;
 				result = true;
 			}
 			else
