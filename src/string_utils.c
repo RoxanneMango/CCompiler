@@ -166,65 +166,40 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 		int indent = 0;
 		while(node)
 		{
-			if(node->type != IdentifierToken)
+//			getchar();
+//			printf("node->data: '%s'\n", node->data);
+						
+			if(node->type == PunctuationToken)
 			{
-				wasIdent = false;
+				printf("\033[97m%s\033[0m", node->data); // green
 			}
-			if(node->type == IdentifierToken)
+			else if(node->type == OperatorToken)
 			{
-				printf("%s%s%s%s", "\033[90m", wasIdent ? " " : "", node->data, "\033[0m"); // blue
-				wasIdent = true;
-			}
-			else if(node->type == PunctuationToken)
-			{
-				char * cc_start = "\033[94m"; // default blue
-				char * cc_end = "\033[0m";
-				
-				char c = node->data[0];
-				if(c=='+' || c=='-' || c=='/' || c=='*' || c=='%') // || c=='#' || c=='&')
-				{
-					node->type = OperatorToken;
-					cc_start = "\033[96m"; // cyan
-				}
-				else if((((strlen(node->data)==1) && c == '<') || c == '>') || strlen(node->data) == 2)
-				{
-					char c2 = node->data[1];
-					if((c2 != '=') || (c == '=' && c2 == '='))
-					{
-						node->type = ComparisonToken;
-						cc_start = "\033[91m"; // red
-					}
-				}
-				else if(((strlen(node->data)==1) && c == '=') || (strlen(node->data)==2 && node->data[1] == '=') )
-				{
-					// assignment token
-					node->type == AssignmentToken;
-					cc_start = "\033[95m"; // magenta
-				}
-				printf("%s%s%s", cc_start, node->data, cc_end);
-
-				if(c=='{') indent += 1;
-				if(c=='}') indent -= 1;
-				
-				if(c == ';' || c == '{' || c == '}')
-				{
-					printf("\n");
-					if(indent)
-					{
-						for(int i = 0; i < indent; i++)
-						{
-							printf("  ");
-						}						
-					}
-				}
-			}
-			else if(node->type == NumberToken)
-			{
-				printf("\033[92m%s\033[0m", node->data); // green
-			}
+				printf("\033[96m%s\033[0m", node->data); // cyan
+			}			
 			else if(node->type == StringToken)
 			{
 				printf("\033[33m%s\033[0m", node->data); // Dark Yellow
+			}
+			else if(node->type == PrimitiveTypeToken)
+			{
+				printf("\033[94m%s\033[0m ", node->data); // Blue
+			}	
+			else if(node->type == ControlFlowToken)
+			{
+				printf("\033[92m%s\033[0m ", node->data); // green
+			}
+			else if((node->data[0] >= '0') && (node->data[0] <= '9')) // number
+			{
+				printf("\033[33m%s\033[0m", node->data); // Dark Yellow				
+			}
+			else if(node->type == PreprocessorToken)
+			{
+				// skip!
+			}
+			else
+			{
+				printf("\033[90m%s\033[0m ", node->data); // identifier token
 			}
 			
 //			printf("%s\n", node->data);

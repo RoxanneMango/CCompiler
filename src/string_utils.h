@@ -23,14 +23,16 @@ struct _LinkedStringList;
 
 enum TokenType
 {
-	IdentifierToken = 90, // dark gray
-	PunctuationToken = 94, // blue
-	OperatorToken = 96, // cyan
-	ComparisonToken = 91, // red
-	AssignmentToken = 95, // magenta
-	NumberToken = 92, // green 
-	StringToken = 33, // dark yellow
-	PreprocessorToken = 35 // dark magenta
+	IdentifierToken = 0,
+	PunctuationToken,
+	OperatorToken,
+	ComparisonToken,
+	AssignmentToken,
+	NumberToken, 
+	StringToken,
+	PrimitiveTypeToken,
+	ControlFlowToken,
+	PreprocessorToken
 };
 typedef enum TokenType TokenType;
 

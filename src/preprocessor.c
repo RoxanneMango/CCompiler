@@ -1265,8 +1265,15 @@ expandIncludes(_LinkedStringList * list)
 	return 0;
 }
 
-int addSyntaxTreeNode(_SyntaxTree * tree, char * str);
-int searchSyntaxTreeNode(_SyntaxTree * tree, char * string);
+struct _SyntaxTreeSearchResult
+{
+	int index;
+	TokenType type;
+};
+struct _SyntaxTreeSearchResult typedef _SyntaxTreeSearchResult;
+
+int addSyntaxTreeNode(_SyntaxTree * tree, char * str, TokenType tokenType);
+_SyntaxTreeSearchResult searchSyntaxTreeNode(_SyntaxTree * tree, char * string);
 
 struct _SyntaxTreeNode
 {
@@ -1274,6 +1281,7 @@ struct _SyntaxTreeNode
 	int depth;
 	int size;
 	char data;
+	TokenType type;
 	_SyntaxTreeNode ** children;
 };
 
@@ -1282,11 +1290,11 @@ struct _SyntaxTree
 	int size;
 	_SyntaxTreeNode ** children;
 
-	int(*add)(_SyntaxTree * tree, char * string);
-	int(*search)(_SyntaxTree * tree, char * string);
+	int(*add)(_SyntaxTree * tree, char * string, TokenType tokenType);
+	_SyntaxTreeSearchResult (*search)(_SyntaxTree * tree, char * string);
 };
 
-int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size, char data)
+int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size, char data, TokenType tokenType)
 {
 //	node = malloc(sizeof(_SyntaxTreeNode));
 	
@@ -1294,6 +1302,7 @@ int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size
 	node->depth = depth;
 	node->size = size;
 	node->data = data;
+	node->type = tokenType;
 	node->children = NULL;
 	
 	DEBUG_PRINT("_InitSyntaxTreeNode '%c' isLeaf=%s\n", data, isLeaf ? "true" : "false");
@@ -1301,16 +1310,18 @@ int _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, int depth, int size
 	return 0;
 }
 
-int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
+_SyntaxTreeSearchResult searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 {
+	_SyntaxTreeSearchResult result = { .index = -1, .type = IdentifierToken };
+	
 	// error checking
-	if(!tree) 	{ DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return -1; }
-	if(!string) { DEBUG_PRINT("char * str was NULL\n"); 			return -1; }
+	if(!tree) 	{ DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return result; }
+	if(!string) { DEBUG_PRINT("char * str was NULL\n"); 			return result; }
 
 	int length = strlen(string);
 	if(!length)
 	{
-		DEBUG_PRINT("char * str was empty!\n"); return -1;
+		DEBUG_PRINT("char * str was empty!\n"); return result;
 	}
 
 	DEBUG_PRINT("searched string: %s\n", string);
@@ -1318,51 +1329,46 @@ int searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	int index = 0;
 	_SyntaxTreeNode *** list = &tree->children;
 
-	int listSize = tree->size;
 	bool isFound = *list == NULL ? false : true;
-	bool isLeaf = false;
-	int returnIndex = 0;
+	int listSize = tree->size;
 	while(isFound && (index < length))
 	{
 		isFound = false;
+		bool isLeaf = false;	
 		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
-		if(*list)
+		for(int child_i = 0; (*list) && child_i < listSize; child_i++)
 		{
-			for(int child_i = 0; child_i < listSize; child_i++)
+			_SyntaxTreeNode * node = (*list)[child_i];
+			DEBUG_PRINT("'%c', ", node->data);
+			DEBUG_PRINT("== '%c'\n", string[index]);
+			if(node->data == string[index])
 			{
-				DEBUG_PRINT("'%c', ", (*list)[child_i]->data);
-				if((*list)[child_i]->data == string[index])
+				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);
+
+				list = &node->children;
+				listSize = node->size;
+				isFound = true;
+
+				index += 1;
+
+				if(node->isLeaf)
 				{
-					index += 1;
-					
-					DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
-					_SyntaxTreeNode * node = (*list)[child_i];
-					isLeaf = node->isLeaf;
-					list = &node->children;
-					listSize = node->size;
-					isFound = true;
-					
-					if(isLeaf)
-					{
-						returnIndex = index;
-					}
-					
-					break;
+					DEBUG_PRINT("is leaf result : %s\n", string);
+					result.index = index;
+					result.type = node->type;
 				}
+				break;
 			}
 		}
 		if(!isFound)
 		{
 			DEBUG_PRINT("\n\t\tCould not find a match!\n");
 		}
-	}
-	
-//	if(returnIndex) printf("ReturnIndex: %d\n", returnIndex);
-	
-	return returnIndex;
+	}	
+	return result;
 }
 
-int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
+int addSyntaxTreeNode(_SyntaxTree * tree, char * string, TokenType tokenType)
 {
 	DEBUG_PRINT("int addSyntaxTreeNode(_SyntaxTree * = '%s', char * str = '%s')\n", "tree", string);
 	DEBUG_PRINT("==============================================================================================\n");
@@ -1385,8 +1391,8 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
-
-		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index]);
+		
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], tokenType);
 
 		node = (*list)[0];
 		list = &node->children;
@@ -1418,7 +1424,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		for(int child_i = 0; child_i < listSize; child_i++)
 		{
 			DEBUG_PRINT("'%c', ", *list ? (*list)[child_i]->data : 'X'); //getchar();
-			if(*list && (*list)[child_i]->data == string[index])
+			if(list && *list && (*list)[child_i]->data == string[index])
 			{
 				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
 				node = (*list)[child_i];
@@ -1463,7 +1469,8 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 		DEBUG_PRINT("\tCould not match letter '%c' with node at depth %d -- making list bigger (%d) and adding letter '%c'... \n", string[index], index, listSize, string[index]);
 		(*list) = realloc((*list), sizeof(_SyntaxTreeNode*) * listSize);
 		(*list)[listSize-1] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode((*list)[listSize-1], index>=(index-1), index, 0, string[index]);		
+		_initSyntaxTreeNode((*list)[listSize-1], index>=(length-1), index, 0, string[index], tokenType);
+		(*list)[listSize-1]->size += ((index+1) < length);
 		list = &(*list)[listSize-1]->children;
 		index++;
 	}
@@ -1476,18 +1483,17 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string)
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index]);
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], tokenType);
 		(*list)[0]->size = 1;
 		list = &(*list)[0]->children;
-		
 		index++;
 	}
 	
-	DEBUG_PRINT("Tree child nodes: %d\n\t", tree->size);
-	for(int i = 0; i < tree->size; i++)
-	{
-		DEBUG_PRINT("'%c' ", tree->children[i]->data);
-	}
+//	DEBUG_PRINT("Tree child nodes: %d\n\t", tree->size);
+//	for(int i = 0; i < tree->size; i++)
+//	{
+//		DEBUG_PRINT("'%c' ; isLeaf: %s", tree->children[i]->data, (tree->children[i]->isLeaf ? "true" : "false"));
+//	}
 	DEBUG_PRINT("\n==============================================================================================\n");
 
 	return 0;
@@ -1505,7 +1511,11 @@ char * _Punctuation[] =
 {
 	".", ",", ";", ":",
 	"(", ")", "{", "}",
-	"[", "]", "'", "\"",
+	"[", "]", "'", "\""
+};
+
+char * _Operators[] = 
+{
 	// operators
 	"!", "+", "-", "=",
 	"<", ">", "*", "/",
@@ -1514,7 +1524,17 @@ char * _Punctuation[] =
 	// double operators
 	"--", "++", "||", "&&", "<<", ">>", "##", "->",
 	"-=", "+=", "|=", "&=", "<=", ">=", "==", "!=",
-	"^=", "*=", "/=", "%=", "<<=", ">>="
+	"^=", "*=", "/=", "%=", "<<=", ">>="	
+};
+
+char * _PrimitiveTypes[] =
+{
+	"int", "void", "char", "unsigned", "long", "double", "float", "struct", "static", "const"
+};
+
+char * _ControlFlow[] =
+{
+	"if", "do", "for", "else", "goto", "while", "return"
 };
 
 char * _PreprocessorIdentifiers[] =
@@ -1562,25 +1582,18 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 	DEBUG_PRINT("> ");
 	
 	int i = 0;
+		
 	while(*string)
 	{
+		_SyntaxTreeSearchResult result = syntaxTree->search(syntaxTree, string);
+		i = result.index;
 		// seperate tokens based on whitespace
-		if((i = syntaxTree->search(syntaxTree, string)) > 0)
+		if(i > 0)
 		{
 			if(index > 0)
 			{
 				token[index] = '\0';
-				if(isNumber)
-				{
-					DEBUG_PRINT("NUMBER: %s\n", token);
-					tokenList->addNode(tokenList, token, NumberToken);
-					isNumber = false;
-				}
-				else
-				{
-					DEBUG_PRINT("IDENT: %s\n", token);
-					tokenList->addNode(tokenList, token, IdentifierToken);
-				}
+				tokenList->addNode(tokenList, token, result.type);
 			}
 //			i+=1;
 			token[0] = '\0';
@@ -1588,7 +1601,7 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 			token[i] = '\0';
 
 			DEBUG_PRINT("PUNC: %s\n", token);
-			tokenList->addNode(tokenList, token, PunctuationToken);
+			tokenList->addNode(tokenList, token, result.type);
 			token[0] = '\0';
 			
 			string += i;
@@ -1599,18 +1612,7 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 			if(index > 0)
 			{
 				token[index] = '\0';
-				if(isNumber)
-				{
-					DEBUG_PRINT("NUMBER: %s (%s);\n", token, ogString);
-					tokenList->addNode(tokenList, token, NumberToken);
-					isNumber = false;
-				}
-				else
-				{
-					DEBUG_PRINT("IDENT: %s;\n", token);
-					tokenList->addNode(tokenList, token, IdentifierToken);
-				}
-
+				tokenList->addNode(tokenList, token, result.type);
 				token[0] = '\0';
 				index = 0;
 			}
@@ -1618,39 +1620,13 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 			continue;
 		}
 		else
-		{
-			// asign letter to token string
-			int num = (*string) - '0';
-			
-//			printf("num: %c %d\n", *string, num);
-			
+		{			
 			token[index] = *string++;
-
-			if(index == 0)
-			{
-				if((num >= 0) && (num <= 9))
-				{
-					DEBUG_PRINT("num: %c : full_line=%s\n", token[0], ogString);
-					isNumber = true;
-				}
-			}
-			
 			index++;
-			
 			if((*string == '\0') && strlen(token))
 			{
 				token[index] = '\0';
-				if(isNumber)
-				{
-					DEBUG_PRINT("NUMBER: %s\n", token);
-					tokenList->addNode(tokenList, token, NumberToken);
-					isNumber = false;
-				}
-				else
-				{
-					DEBUG_PRINT("IDENT: %s\n", token);
-					tokenList->addNode(tokenList, token, IdentifierToken);
-				}
+				tokenList->addNode(tokenList, token, result.type);
 				index = 0;
 				token[index] = '\0';
 			}
@@ -1745,25 +1721,27 @@ tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTre
 	_StringNode * node = list->head;
 	
 	int tokenNum = 0;
+
+	bool isStringLiteral = false;
+	bool isEscapedStringLiteral = false;
+
 	while(node)
 	{
-		char * string = node->data;
+		char * string = node->data;		
+		// clean the string ...
+		while(isWhiteSpace(*string)) string++;
+		trimWhiteSpaces(string);
+
 		int length = strlen(string);
 		char token[length+1];
 		token[0] = '\0';
 
-		// if its a preprocessor directive ...
+		if(!string || !length) continue;
 
 		int index = 0;
-		
-		bool isStringLiteral = false;
-		
-		// clean the string ...
-		while(isWhiteSpace(*string)) string++;
-		trimWhiteSpaces(string);
-		
+				
 		// if this is a preprocessor directive ...
-		if(string && strlen(string) && string[0] == '#')
+		if(string[0] == '#')
 		{
 			// just add the whole thing as is for later unpacking ...
 //			printf("%s -- index: %d\n", string, node->index);
@@ -1778,29 +1756,18 @@ tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTre
 				token[index] = string[i];
 				index++;
 				
-				if(!isStringLiteral)
+				// we are at the last character on the line
+				if((i == length-1) && (isStringLiteral && string[i] == '\\'))
 				{
-//					printf("(i(%d)==(length-1)(%d) && strlen(token)(%d)) == %d\n", i, length, strlen(token), ((i==(length-1)) && strlen(token)));
-//					printf("(isWhiteSpace(string[i(%d)])(%d) && strlen(token)(%d)) == %d\n", i, isWhiteSpace(string[i]), strlen(token), (isWhiteSpace(string[i]) && strlen(token)));
-					if(((i==(length-1)) && strlen(token)) || (isWhiteSpace(string[i]) && strlen(token)) )
-					{
-						// terminate token string
-						token[index] = '\0';
-//						printf("token: %s\n", token);
-						if(strlen(token))
-						{
-							processToken(token, tokenList, syntaxTree);
-						}
-						index = 0;
-						token[0] = '\0';
-					}
+					// We are in the middle of processing a string literal, but We found an escape character
+					token[index-1] = '\0';
+					tokenList->addNode(tokenList, token, StringToken);						
 				}
-				
-				if(string[i] == '\"')
+				else if(string[i] == '\"')
 				{
 					// make sure it is not escaped
-					if( (i == 0) || ((string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) ) )
-					{
+					if( (string[i-1] != '\\') || ((i>1) && (string[i-2] == '\\')) )
+					{						
 						// closing bracket -- tokenize
 						if(isStringLiteral)
 						{
@@ -1833,7 +1800,24 @@ tokenization(_LinkedStringList * list, _LinkedStringList * tokenList, _SyntaxTre
 							isStringLiteral = true;
 						}
 					} // check whether character is escaped
-				} // check for start/end ' " ' of string literal
+				} // check for start/end ' " ' of string literal				
+				
+				if(!isStringLiteral)
+				{
+//					printf("(i(%d)==(length-1)(%d) && strlen(token)(%d)) == %d\n", i, length, strlen(token), ((i==(length-1)) && strlen(token)));
+//					printf("(isWhiteSpace(string[i(%d)])(%d) && strlen(token)(%d)) == %d\n", i, isWhiteSpace(string[i]), strlen(token), (isWhiteSpace(string[i]) && strlen(token)));
+					if(((i==(length-1)) && strlen(token)) || (isWhiteSpace(string[i]) && strlen(token)) )
+					{
+						// terminate token string
+						token[index] = '\0';
+						if(strlen(token))
+						{
+							processToken(token, tokenList, syntaxTree);
+						}
+						index = 0;
+						token[0] = '\0';
+					}
+				}
 			} // for
 		} // else -- not a # directive
 		node = node->next;
@@ -1863,16 +1847,45 @@ preprocess(const char * filePATH, const char * outPATH)
 	stitchTogether(_FileLines);
 	filterOutComments(_FileLines);
 
-	int len = sizeof(_Punctuation) / sizeof(char) / sizeof(char*); 
-	printf("Punctuation:\n");
+	int len = 0;
+
+	len = sizeof(_PrimitiveTypes) / sizeof(char) / sizeof(char*); 
+	printf("\nPrimitive Types:\n");
+	for(int i = 0; i < len; i++) 
+	{
+		printf("%s ", _PrimitiveTypes[i]);
+		addSyntaxTreeNode(syntaxTree, _PrimitiveTypes[i], PrimitiveTypeToken);
+	}
+	printf("\n");
+
+	len = sizeof(_ControlFlow) / sizeof(char) / sizeof(char*); 
+	printf("\nControl flow:\n");
+	for(int i = 0; i < len; i++) 
+	{
+		printf("%s ", _ControlFlow[i]);
+		addSyntaxTreeNode(syntaxTree, _ControlFlow[i], ControlFlowToken);
+	}
+	printf("\n");
+
+	len = sizeof(_Operators) / sizeof(char) / sizeof(char*); 
+	printf("\nPunctuation:\n");
+	for(int i = 0; i < len; i++) 
+	{
+		printf("%s ", _Operators[i]);
+		addSyntaxTreeNode(syntaxTree, _Operators[i], OperatorToken);
+	}
+	printf("\n");
+
+	len = sizeof(_Punctuation) / sizeof(char) / sizeof(char*); 
+	printf("\nPunctuation:\n");
 	for(int i = 0; i < len; i++) 
 	{
 		printf("%s ", _Punctuation[i]);
-		addSyntaxTreeNode(syntaxTree, _Punctuation[i]);
+		addSyntaxTreeNode(syntaxTree, _Punctuation[i], PunctuationToken);
 	}
 	printf("\n");
-	
-	printf("Numbers: %d - %d\n", '0' - '0', '9' - '0');
+
+	printf("\nNumbers: %d - %d\n", '0' - '0', '9' - '0');
 	printf("\n");
 	
 	len = sizeof(_PreprocessorIdentifiers) / sizeof(char) / sizeof(char*);
@@ -1880,7 +1893,7 @@ preprocess(const char * filePATH, const char * outPATH)
 	for(int i = 0; i < len; i++)
 	{
 		printf("%s ", _PreprocessorIdentifiers[i]);
-		syntaxTree_PreprocessorDirectives.add(&syntaxTree_PreprocessorDirectives, _PreprocessorIdentifiers[i]);
+		syntaxTree_PreprocessorDirectives.add(&syntaxTree_PreprocessorDirectives, _PreprocessorIdentifiers[i], PreprocessorToken);
 	}
 	printf("\n");
 
@@ -1889,10 +1902,10 @@ preprocess(const char * filePATH, const char * outPATH)
 
 	// tokenization
 	tokenization(_FileLines, _Tokens, syntaxTree);	
-	handlePreprocessorDirectives(_FileLines, syntaxTree, _SymbolTable);
+//	handlePreprocessorDirectives(_FileLines, syntaxTree, _SymbolTable);
 //	expandIncludes(&_FileLines);
 	
-//	_Tokens->print(_Tokens, false);
+	_Tokens->print(_Tokens, false);
 //	_FileLines->print(_FileLines, false);
 
 	return 0;
@@ -1910,7 +1923,7 @@ main(int argc, char ** argv)
 		}
 	}
 
-	preprocess("preprocessor.c", "preprocessor.E");
+	preprocess("test_input.c", "test_input.E");
 
 	return 0;
 }
