@@ -1334,13 +1334,13 @@ _SyntaxTreeSearchResult searchSyntaxTreeNode(_SyntaxTree * tree, char * string)
 	while(isFound && (index < length))
 	{
 		isFound = false;
-		bool isLeaf = false;	
+		bool isLeaf = false;
 		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
 		for(int child_i = 0; (*list) && child_i < listSize; child_i++)
 		{
 			_SyntaxTreeNode * node = (*list)[child_i];
-			DEBUG_PRINT("'%c', ", node->data);
-			DEBUG_PRINT("== '%c'\n", string[index]);
+//			DEBUG_PRINT("'%c', ", node->data);
+//			DEBUG_PRINT("== '%c'\n", string[index]);
 			if(node->data == string[index])
 			{
 				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);
@@ -1392,7 +1392,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string, TokenType tokenType)
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
 		
-		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], tokenType);
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], index>=(length-1) ? tokenType : IdentifierToken);
 
 		node = (*list)[0];
 		list = &node->children;
@@ -1469,7 +1469,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string, TokenType tokenType)
 		DEBUG_PRINT("\tCould not match letter '%c' with node at depth %d -- making list bigger (%d) and adding letter '%c'... \n", string[index], index, listSize, string[index]);
 		(*list) = realloc((*list), sizeof(_SyntaxTreeNode*) * listSize);
 		(*list)[listSize-1] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode((*list)[listSize-1], index>=(length-1), index, 0, string[index], tokenType);
+		_initSyntaxTreeNode((*list)[listSize-1], index>=(length-1), index, 0, string[index], index>=(length-1) ? tokenType : IdentifierToken);
 		(*list)[listSize-1]->size += ((index+1) < length);
 		list = &(*list)[listSize-1]->children;
 		index++;
@@ -1483,7 +1483,7 @@ int addSyntaxTreeNode(_SyntaxTree * tree, char * string, TokenType tokenType)
 
 		(*list) = malloc(sizeof(_SyntaxTreeNode*));
 		(*list)[0] = malloc(sizeof(_SyntaxTreeNode));
-		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], tokenType);
+		_initSyntaxTreeNode(((*list)[0]), index>=(length-1), 1, 0, string[index], index>=(length-1) ? tokenType : IdentifierToken);
 		(*list)[0]->size = 1;
 		list = &(*list)[0]->children;
 		index++;
@@ -1590,17 +1590,18 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 		// seperate tokens based on whitespace
 		if(i > 0)
 		{
+			// Only a part of the token could be matched against a keyword
+			// The other part is an identifier token (IDENT)
 			if(index > 0)
 			{
 				token[index] = '\0';
-				tokenList->addNode(tokenList, token, result.type);
+				tokenList->addNode(tokenList, token, IdentifierToken);
 			}
-//			i+=1;
 			token[0] = '\0';
 			strncpy(token, string, i);
 			token[i] = '\0';
 
-			DEBUG_PRINT("PUNC: %s\n", token);
+			DEBUG_PRINT("tokenType(%d): %s\n", result.type, token);
 			tokenList->addNode(tokenList, token, result.type);
 			token[0] = '\0';
 			

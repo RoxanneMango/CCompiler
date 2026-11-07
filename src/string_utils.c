@@ -171,7 +171,7 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 						
 			if(node->type == PunctuationToken)
 			{
-				printf("\033[97m%s\033[0m", node->data); // green
+				printf("\033[91m%s\033[0m", node->data); // green
 			}
 			else if(node->type == OperatorToken)
 			{
