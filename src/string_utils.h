@@ -7,6 +7,8 @@
 #include <stdbool.h>// true false bool definition
 #include <dirent.h> // DIR * definition
 
+#include "token_type.h"
+
 #ifndef DEBUG
 #define DEBUG 0
 #else
@@ -20,21 +22,6 @@ struct _LinkedStringList typedef _LinkedStringList;
 
 struct _StringNode;
 struct _LinkedStringList;
-
-enum TokenType
-{
-	IdentifierToken = 0,
-	PunctuationToken,
-	OperatorToken,
-	ComparisonToken,
-	AssignmentToken,
-	NumberToken, 
-	StringToken,
-	PrimitiveTypeToken,
-	ControlFlowToken,
-	PreprocessorToken
-};
-typedef enum TokenType TokenType;
 
 int addStringNode(_LinkedStringList * list, const char * string, TokenType type);
 int removeStringNode(_LinkedStringList * list, _StringNode * node);

@@ -1,4 +1,5 @@
 #include "symbol_table.h"
+#include "file_io.h"
 
 int
 initSymbolTable(_Symbol_Table * list)
@@ -18,7 +19,6 @@ initSymbolTable(_Symbol_Table * list)
 
 int 
 removeSymbolNode(_Symbol_Table * list, _Symbol * node)
-//removeSymbolNode(_Symbol_Table * list, const char * value)
 {
 	if(!list)
 	{
@@ -79,7 +79,8 @@ removeSymbolNode(_Symbol_Table * list, _Symbol * node)
 	return 0;
 }
 
-int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition)
+int 
+addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _StringNode * filePosition)
 {
 	if(!list)
 	{
@@ -161,7 +162,8 @@ int addSymbolNode(_Symbol_Table * list, const char * name, const char * value, _
 	return 0;
 }
 
-int printSymbolTable(_Symbol_Table * list)
+int 
+printSymbolTable(_Symbol_Table * list)
 {
 	if(!list)
 	{
@@ -214,7 +216,6 @@ findSymbolNode(_Symbol_Table * list, const char * name)
 	return NULL;
 }
 
-
 int 
 initSymbolPointerList(_Symbol_Pointer_List * list)
 {
@@ -233,8 +234,6 @@ initSymbolPointerList(_Symbol_Pointer_List * list)
 	
 	return 0;
 }
-
-
 
 int 
 addSymbolPointerNode(_Symbol_Pointer_List * list, _Symbol * symbol)
@@ -290,6 +289,7 @@ addSymbolPointerNode(_Symbol_Pointer_List * list, _Symbol * symbol)
 	
 	return 0;
 }
+
 int 
 removeSymbolPointerNode(_Symbol_Pointer_List * list, _Symbol_Pointer_List_Node * node)
 {
@@ -325,6 +325,7 @@ removeSymbolPointerNode(_Symbol_Pointer_List * list, _Symbol_Pointer_List_Node *
 	
 	return 0;
 }
+
 int 
 printSymbolPointerList(_Symbol_Pointer_List * list)
 {
@@ -349,4 +350,64 @@ printSymbolPointerList(_Symbol_Pointer_List * list)
 	}
 	
 	return 0;
+}
+
+int populateSymbolTable(_LinkedStringList * list)
+{
+	if(!list)
+	{
+		DEBUG_PRINT("_LinkedStringList * was NULL\n");
+		return -1;
+	}
+	if(!list->head)
+	{
+		DEBUG_PRINT("_LinkedStringList head was NULL\n");
+		return -1;		
+	}
+	
+	_StringNode * node = list->head;
+	while(node)
+	{
+		char * line = node->data;
+		
+		// sanitize include statement
+		char * preprocessorDirective = "#";
+		char * include = strstr(line, preprocessorDirective);
+		int includePos = abs(line - include);
+		if(include && !partOfString(line, include))
+		{
+			if(includePos > 1)
+			{
+				DEBUG_PRINT("includePos: %d\n", includePos);
+				while(isWhiteSpace(*line)) line++; // trim whitespaces
+				if(line != include)
+				{
+					DEBUG_PRINT("Oh no, there was a non-whitespace character before the #include!\n");
+					return -1;
+				}
+			}
+			int len = strlen(line) - (includePos + strlen(preprocessorDirective));
+			char fileName[len]; fileName[0] = '\0';
+			strncat(fileName, (line + strlen(preprocessorDirective)), len);
+			trimWhiteSpaces(fileName);
+			
+			// now its possible to open the file and preprocess that too
+			int isValid = validateInclude(fileName);
+			if(isValid)
+			{
+				FILE * FP = fopen(fileName, "r");
+				if(!FP)
+				{
+					DEBUG_PRINT("Could not open include file %s\n", fileName);
+					return -1;
+				}
+				
+				
+			}
+
+			printf("isValid: %d\n", isValid);
+		}
+		node = node->next;
+	}	
+	return 0;	
 }

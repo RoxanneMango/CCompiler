@@ -1,9 +1,18 @@
 .PHONY: all debug clean build build-dir bin-dir
 
 CC = gcc
-CFLAGS = -Wall -O0 -g
+#CFLAGS = -Wall -O0 -g
+CFLAGS = -O0 -g
 
-C_OBJECTS = preprocessor.o string_utils.o symbol_table.o
+C_OBJECTS = main.o 						\
+			preprocessor.o				\
+			string_utils.o				\
+			symbol_table.o				\
+			tokenization.o				\
+			syntax_tree.o 				\
+			file_io.o 					\
+			evaluate_expressions.o 		\
+			preprocessor_directives.o
 EXEC = preprocessor
 
 INCLUDE = ../include

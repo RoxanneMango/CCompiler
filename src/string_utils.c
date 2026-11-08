@@ -171,7 +171,7 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 						
 			if(node->type == PunctuationToken)
 			{
-				printf("\033[91m%s\033[0m", node->data); // green
+				printf("\033[91m%s\033[0m", node->data); // red
 			}
 			else if(node->type == OperatorToken)
 			{
@@ -181,25 +181,28 @@ int printStringList(_LinkedStringList * list, bool prettyPrint)
 			{
 				printf("\033[33m%s\033[0m", node->data); // Dark Yellow
 			}
-			else if(node->type == PrimitiveTypeToken)
+			else if(node->type == DataTypeToken 	||
+					node->type == StorageClassToken ||
+					node->type == QualifierToken      )
 			{
 				printf("\033[94m%s\033[0m ", node->data); // Blue
-			}	
-			else if(node->type == ControlFlowToken)
+			}				
+			else if(node->type == ControlFlowToken || 
+					 node->type == UserDefinedTypeToken )
 			{
 				printf("\033[92m%s\033[0m ", node->data); // green
 			}
-			else if((node->data[0] >= '0') && (node->data[0] <= '9')) // number
+			else if(node->type == NumberToken) // number
 			{
-				printf("\033[33m%s\033[0m", node->data); // Dark Yellow				
+				printf("\033[33m%s\033[0m", node->data); // Dark Yellow	
 			}
 			else if(node->type == PreprocessorToken)
 			{
-				// skip!
+				printf("\033[95m%s\033[0m\n", node->data);
 			}
 			else
 			{
-				printf("\033[90m%s\033[0m ", node->data); // identifier token
+				printf("\033[98m%s\033[0m", node->data); // identifier token (white)
 			}
 			
 //			printf("%s\n", node->data);
