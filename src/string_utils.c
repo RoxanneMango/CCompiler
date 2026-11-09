@@ -81,6 +81,11 @@ int addStringNode(_LinkedStringList * list, const char * string, TokenType type)
 		
 	DEBUG_PRINT("addStringNode string: %s\n", string);
 	
+	if(type == IdentifierToken && (string[0] >= '0') && (string[0] <= '9')) // number
+	{
+		type = NumberToken;
+	}
+	
 	int len = strlen(string);
 	node->length = len;
 	node->data = malloc(sizeof(char) * len+1);

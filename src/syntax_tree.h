@@ -40,5 +40,7 @@ int addSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * str, const TokenTyp
 _SyntaxTreeSearchResult searchSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * string);
 
 extern _SyntaxTree syntaxTree_PreprocessorDirectives;
+extern _SyntaxTree syntaxTree_punctuation_and_operators;
+extern _SyntaxTree syntaxTree_keywords;
 
 #endif // SYNTAX_TREE_H

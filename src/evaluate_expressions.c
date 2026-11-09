@@ -116,7 +116,7 @@ evaluateExpressions(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree, _Sy
 				result = true;
 			}
 			else
-			{
+			{				
 				printf("symbol not found! (%s)\n", node->data);
 				result = false;
 			}

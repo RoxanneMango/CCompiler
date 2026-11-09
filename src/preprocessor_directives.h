@@ -9,7 +9,7 @@ extern const char * LINE_MACRO;
 extern const char * FILE_MACRO;
 
 // Handle '#' statements
-int handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable);
+int handlePreprocessorDirectives(_LinkedStringList * fileList, _Symbol_Table * symbolTable);
 
 // Remove comments from the code
 int filterOutComments(_LinkedStringList * list);

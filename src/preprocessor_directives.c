@@ -156,13 +156,13 @@ removeBetweenSymbols(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol
 	int nesting = 0;
 	while(end)
 	{
-		if(	!strcmp(end->name, "#if") ||
-			!strcmp(end->name, "#ifdef") ||
-			!strcmp(end->name, "#ifndef") )
+		if(	!strcmp(end->name, "if") ||
+			!strcmp(end->name, "ifdef") ||
+			!strcmp(end->name, "ifndef") )
 		{
 			nesting++;
 		}
-		if(strcmp(end->name, "#endif") == 0)
+		if(strcmp(end->name, "endif") == 0)
 		{
 			if(nesting == 0)
 			{
@@ -198,24 +198,25 @@ removeBetweenSymbols(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol
 	list->removeNode(list, end);
 	DEBUG_PRINT("after directives length: %d\n", list->length);
 	DEBUG_PRINT("Recursing back into handleIfGroups\n");
-	
+			
 	return true;
 }
 
 // return the node where the preprocessing will continue
 // return NULL if something went wrong during processing
 void
-handleIfGroups(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol_Table * symbolTable, _Symbol * directive)
+handleIfGroups(_Symbol_Table * list, _LinkedStringList * tokenList, _Symbol_Table * symbolTable, _Symbol * directive)
 {
-	int ifndef = false;
 	while(directive)
-	{
+	{				
 		char * name = directive->name;
 		char * value = directive->value;
 		
-		if((ifndef = (strcmp(name, "#ifndef") == 0)) || (strcmp(name, "#ifdef") == 0))
+		bool ifndef = !strcmp(name, "ifndef");
+		
+		if(ifndef || !strcmp(name, "ifdef"))
 		{
-			DEBUG_PRINT("%s token!\n", ifndef ? "#ifndef" : "#ifdef");						
+			DEBUG_PRINT("%s token!\n", ifndef ? "ifndef" : "ifdef");
 
 			// look through symbol table to see if symbol has been defined already
 			_Symbol * foundSymbol = symbolTable->find(symbolTable, value);
@@ -227,26 +228,31 @@ handleIfGroups(_Symbol_Table * list, _LinkedStringList * fileList, _Symbol_Table
 				definedBeforeStatement =  directive->filePosition->index > foundSymbol->filePosition->index;
 				DEBUG_PRINT("(%s: %d) > (%s: %d) = %d\n", directive->filePosition->data, directive->filePosition->index, foundSymbol->filePosition->data, foundSymbol->filePosition->index, definedBeforeStatement);
 			}
-			// execute
-			if((ifndef && !definedBeforeStatement) || (!ifndef && definedBeforeStatement))
+			
+			if(ifndef && !foundSymbol || (ifndef && foundSymbol && !definedBeforeStatement))
 			{
-				// recurse into it
-				DEBUG_PRINT("token was%sdefined %s -- Executing segment!\n", ifndef ? "not" : " ", value);
+				// #ifndef X --> X was not defined, or X was defined later than ifndef is checked
+				DEBUG_PRINT("ifndef token was NOT defined %s -- Executing segment!\n", value);				
 			}
-			// not execute
+			else if(!ifndef && foundSymbol && definedBeforeStatement)
+			{
+				// #ifdef X --> X was defined
+				DEBUG_PRINT("ifdef token was defined %s -- Executing segment!\n", value);				
+			}
+			// conditions not met --> delete
 			else
 			{
-				DEBUG_PRINT("token was already defined: %s -- removing nodes!\n", value);
-				removeBetweenSymbols(list, fileList, directive);
-				handleIfGroups(list, fileList, symbolTable, list->head);
+				DEBUG_PRINT("token was already defined: %s -- removing nodes!\n", value);												
+				removeBetweenSymbols(list, tokenList, directive);
+				handleIfGroups(list, tokenList, symbolTable, list->head);				
+				break;				
 			}
 		}
-		else if(strcmp(name, "#if") == 0)
+		else if(!strcmp(name, "if"))
 		{																		
 			// handle if statement here ...
-			DEBUG_PRINT("If token! : %s: %d\n", value, EVAL(value));				
+			DEBUG_PRINT("If token! : %s: %d\n", value, EVAL(value));
 		}
-		
 		directive = directive->next;
 	}
 }
@@ -279,24 +285,11 @@ int handleIncludeDirective(_LinkedStringList * tokenList)
 }
 
 int 
-handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxTree, _Symbol_Table * symbolTable)
+handlePreprocessorDirectives(_LinkedStringList * fileList, _Symbol_Table * symbolTable)
 {
-	if(!fileList)
-	{	DEBUG_PRINT("_LinkedStringList * was NULL\n");
-		return -1;
-	}
-	if(!fileList->head)
-	{	DEBUG_PRINT("_LinkedStringList head was NULL\n");
-		return -1;		
-	}
-	if(!symbolTable)
-	{	DEBUG_PRINT("_Symbol_Table * was NULL\n");
-		return -1;
-	}
-	if(!syntaxTree)
-	{	DEBUG_PRINT("_SyntaxTree * was NULL\n");
-		return -1;
-	}
+	if(!fileList)	    { DEBUG_PRINT("_LinkedStringList * was NULL\n"); 	return -1; }
+	if(!fileList->head)	{ DEBUG_PRINT("_LinkedStringList head was NULL\n"); return -1; }
+	if(!symbolTable)    { DEBUG_PRINT("_Symbol_Table * was NULL\n"); 		return -1; }
 
 	int _LookingForEndif = 0;
 	int _ElseEncountered = 0;
@@ -323,18 +316,27 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 	// further processing later
 	while(node)
 	{
-		char * line = node->data;
-		
-		if(line[0] == '#' && (strlen(line) > 1))
-		{
+		if(node->type == PreprocessorToken)
+		{			
+			char * line = node->data;
+			
 			tokenNum++;
 			
 			_LinkedStringList tokenList;
 			initStringList(&tokenList);
-			processToken(line, &tokenList, syntaxTree);
+			processToken(line, &tokenList, &syntaxTree_PreprocessorDirectives);
+			assignProcessedTokens(&tokenList, &syntaxTree_punctuation_and_operators);
+						
+			// Could not match any of the valid preprocessor directives -- Error!
+			if(!tokenList.head->next)
+			{
+				fprintf(stderr, "\033[1;31merror:\e[0m invalid preprocessing directive: %s;\n", line);
+				return -1;
+			}
 			
-			// skip '#' 'directive'
-			_StringNode * token = tokenList.head->next;
+			// skip '#' symbol
+			_StringNode * token = tokenList.head->next;			
+			
 			char * directive = token->data;
 
 			token = token ? token->next : NULL;
@@ -343,17 +345,21 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 			token = token ? token->next : NULL;
 			char * value = token && token ? token->data : NULL;
 
-//			printf("tokenlist print:\n");
+//			printf("\ntokenlist print:");
 //			tokenList.print(&tokenList, false);
 
 //			printf("\ntoken:\n");
 //			printf("directive: %s;\n", directive);
 //			printf("name: %s;\n", name);
 //			printf("value: %s\n", value);
-			
-			// if statements first
+
+			bool isFound = false;
+
+			// Preprocessor directives that take no arguments
 			if(!strcmp(directive, "endif"))
 			{
+				isFound = true;
+				
 				if(_LookingForEndif <= 0)
 				{
 					fprintf(stderr, "\033[1;31merror\e[0m: #endif without #if\n");
@@ -369,41 +375,65 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 
 //				ifStack->addNode(ifStack, name, value, node);
 				
-				isSkip = false;
+				isSkip = false;					
 			}
-			else if(!strcmp(directive, "ifndef") || !strcmp(directive,"ifdef") || !strcmp(directive, "if") )
+			else if(!strcmp(directive, "else"))
 			{
-				_LookingForEndif++;
-				_IfEncountered = true;
-				_ElseEncountered = false;
-				_IfNum++;
-//				ifStack->addNode(ifStack, name, value, node);
+				isFound = true;
 				
-				if(!strcmp(directive, "if"))
+				if( (!_IfEncountered) || (_LookingForEndif <= 0) || (_ElseEncountered) )
 				{
-					// evaluate the if statement ...
-//					printf("tokenlist of if-group start:\n");
-
-					// remove '#' and 'if' so only the statement gets forwarded for evaluation
-					tokenList.removeNode(&tokenList, tokenList.head);
-					tokenList.removeNode(&tokenList, tokenList.head);
-					int result = evaluateExpressions(&tokenList, syntaxTree, symbolTable);
-					printf("condition result: %s\n", result==1 ? "true" : "false");
+					fprintf(stderr, "\033[1;31merror\e[0m: #else without #if or #elif\n");
+					return -1;
 				}
+				_ElseEncountered = true;
+//				ifStack->addNode(ifStack, name, value, node);
+			}
+			// special
+			else if(!strcmp(directive, "include"))
+			{
+				isFound = true;
+				// expand include
+//				printf("Including file:\n");
+//				handleIncludeDirective(&tokenList);
+			}
+			else if(!strcmp(directive, "pragma"))
+			{
+				isFound = true;
+				DEBUG_PRINT("pragma token!\n");
+			}
+			// more token definitions
+			else if(!strcmp(directive, "undef"))
+			{
+				isFound = true;
 				
-				// if true
-				isSkip = true;
-				
-				// evaluate if statement
+				_Symbol * symbol = symbolTable->find(symbolTable, name);
+				if(symbol)
+				{
+					symbolTable->removeNode(symbolTable, symbol);
+				}
+				DEBUG_PRINT("undef token!\n");
+			}
+			else if(!strcmp(directive, "line"))
+			{
+				// set __LINE__ macro
+				isFound = true;
+			}
+			else if(!strcmp(directive, "error"))
+			{
+				// throw custom compiler error when reaching this
+				isFound = true;
 			}
 			else if(!strcmp(directive, "define"))
 			{
+				isFound = true;
+									
 				DEBUG_PRINT("Define: %s\n", name ? name : "null");
 				// if symbol already exists, overwrite it with the new value
 				_Symbol * symbol = symbolTable->find(symbolTable, name);
 				if(symbol)
 				{
-					fprintf(stderr, "\033[95mwarning:\033[0m \"%s\" redefined\n  %d | %s\n    |\n", symbol->name, symbol->filePosition->index, symbol->filePosition->data);
+					fprintf(stderr, "\033[95mwarning:\033[0m \"%s\" redefined\n  %d | #%s %s %s\n    |\n", symbol->name, symbol->filePosition->index, directive, name, (value ? value : ""));
 					if(symbol->value)
 					{
 						free(symbol->value);
@@ -423,23 +453,39 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 				else
 				{
 					DEBUG_PRINT("Define token %s @ %d : %d!\n", name, node->index, value ? (int)strlen(value) : -1);
-					symbolTable->addNode(symbolTable, name, value, node);							
+					symbolTable->addNode(symbolTable, name, value, node);				
 				}
 				
 			}
-			else if(!strcmp(directive, "pragma"))
+			// if statements first
+			else if(!strcmp(directive, "ifndef") || !strcmp(directive,"ifdef") || !strcmp(directive, "if") )
 			{
-				DEBUG_PRINT("pragma token!\n");
-			}
-			// more token definitions
-			else if(!strcmp(directive, "undef"))
-			{
-				_Symbol * symbol = symbolTable->find(symbolTable, name);
-				if(symbol)
+				isFound = true;
+				
+				_LookingForEndif++;
+				_IfEncountered = true;
+				_ElseEncountered = false;
+				_IfNum++;
+//				ifStack->addNode(ifStack, name, value, node);
+				
+				if(!strcmp(directive, "if"))
 				{
-					symbolTable->removeNode(symbolTable, symbol);
+					// evaluate the if statement ...
+//					printf("tokenlist of if-group start:\n");
+
+//						assignProcessedTokens(&tokenList, &syntaxTree_punctuation_and_operators);
+
+					// remove '#' and 'if' so only the statement gets forwarded for evaluation
+//					tokenList.removeNode(&tokenList, tokenList.head);
+//					tokenList.removeNode(&tokenList, tokenList.head);
+					int result = evaluateExpressions(&tokenList, &syntaxTree_punctuation_and_operators, symbolTable);
+					printf("condition result: %s\n", result==1 ? "true" : "false");
 				}
-				DEBUG_PRINT("undef token!\n");
+				
+				// if true
+				isSkip = true;
+				
+				// evaluate if statement
 			}
 			// conditional
 			else if(!strcmp(directive, "elif"))
@@ -449,42 +495,11 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 					fprintf(stderr, "\033[1;31merror\e[0m: #elif without #if\n");
 					return -1;
 				}
+				isFound = true;
 //				ifStack->addNode(ifStack, name, value, node);
-			}
-			else if(!strcmp(directive, "else"))
-			{
-				if( (!_IfEncountered) || (_LookingForEndif <= 0) || (_ElseEncountered) )
-				{
-					fprintf(stderr, "\033[1;31merror\e[0m: #else without #if or #elif\n");
-					return -1;
-				}
-				_ElseEncountered = true;
-//				ifStack->addNode(ifStack, name, value, node);
-			}
-			// special
-			else if(!strcmp(directive, "include"))
-			{
-				// expand include
-//				printf("Including file:\n");
-//				handleIncludeDirective(&tokenList);
-			}
-			else if(!strcmp(directive, "line"))
-			{
-				// set __LINE__ macro
-			}
-			else if(!strcmp(directive, "error"))
-			{
-				// throw custom compiler error when reaching this
-			}
-			// Could not match any of the valid preprocessor directives -- Error!
-			else
-			{
-				fprintf(stderr, "\033[1;31merror:\e[0m invalid preprocessing directive: %s;\n", line);
-				return -1;
-			}
-			
+			}		
 			// add all the preprocessor directives to a list
-//			directiveList.addNode(&directiveList, name, value ? (line+strlen(name)+2) : value, node);
+			directiveList.addNode(&directiveList, directive, name, node);
 		}
 		node = node->next;
 	}
@@ -510,10 +525,12 @@ handlePreprocessorDirectives(_LinkedStringList * fileList, _SyntaxTree * syntaxT
 	
 //	printf("\nSymbol table:\n");
 //	symbolTable->print(symbolTable);
-	
-//	DEBUG_PRINT("\nDirective list:\n");
+//	
+//	printf("\nDirective list:\n");
 //	directiveList.print(&directiveList);
-//	handleIfGroups(&directiveList, fileList, symbolTable, directiveList.head);
+
+	// handleIfGroups(_Symbol_Table * list, _LinkedStringList * tokenList, _Symbol_Table * symbolTable, _Symbol * directive)	
+	handleIfGroups(&directiveList, fileList, symbolTable, directiveList.head);
 
 //	DEBUG_PRINT("\nifstack print:\n");
 //	ifStack->print(ifStack);

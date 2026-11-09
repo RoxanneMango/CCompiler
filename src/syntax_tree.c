@@ -10,6 +10,20 @@ _SyntaxTree syntaxTree_PreprocessorDirectives =
 	.add = addSyntaxTreeNode,
 	.search = searchSyntaxTreeNode
 };
+_SyntaxTree syntaxTree_punctuation_and_operators =
+{
+	.size = 0,
+	.children = NULL,
+	.add = addSyntaxTreeNode,
+	.search = searchSyntaxTreeNode
+};
+_SyntaxTree syntaxTree_keywords =
+{
+	.size = 0,
+	.children = NULL,
+	.add = addSyntaxTreeNode,
+	.search = searchSyntaxTreeNode
+};
 
 int 
 _initSyntaxTreeNode(_SyntaxTreeNode * node, bool isLeaf, const int depth, const int size, char data, TokenType tokenType)
@@ -102,7 +116,7 @@ addSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * string, const TokenType
 	
 	// error checking
 	if(!syntaxTree) 	{ DEBUG_PRINT("_SyntaxTree * tree was NULL\n"); 	return -1; }
-	if(!string) { DEBUG_PRINT("char * str was NULL\n"); 			return -1; }
+	if(!string) { DEBUG_PRINT("char * str was NULL\n"); 					return -1; }
 
 	int index = 0;
 	int length = strlen(string);
@@ -150,7 +164,7 @@ addSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * string, const TokenType
 		DEBUG_PRINT("\t\tTrying to match letter '%c' at index %d with node ...\n\t\t\tLetters: ", string[index], index);		
 		for(int child_i = 0; child_i < listSize; child_i++)
 		{
-			DEBUG_PRINT("'%c', ", *list ? (*list)[child_i]->data : 'X'); //getchar();
+			DEBUG_PRINT("'%c', ", list && *list ? (*list)[child_i]->data : 'X'); 
 			if(list && *list && (*list)[child_i]->data == string[index])
 			{
 				DEBUG_PRINT("... \n\t\tMatched letter '%c' with node %d:%d! \n", string[index], index, child_i);			
@@ -173,7 +187,7 @@ addSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * string, const TokenType
 	DEBUG_PRINT("Checking if node is at beginning of tree or not: %s...\n", node ? "false" : "true");
 	
 	// check whether we are at the beginning of the tree or not
-	DEBUG_PRINT("Was there a complete match with the string? -- %s", isFound ? "true" : "false");
+	DEBUG_PRINT("Was there a complete match with the string? -- %s --", isFound ? "true" : "false");
 	if(!isFound)
 	{
 		if(node)
@@ -187,6 +201,12 @@ addSyntaxTreeNode(_SyntaxTree * syntaxTree, const char * string, const TokenType
 			syntaxTree->size++;
 		}
 		listSize++;
+	}
+	else
+	{
+		DEBUG_PRINT("\tMade node into leaf\n");		
+		node->isLeaf = true;
+		node->type = tokenType;
 	}
 	
 	// the node is not in the list, so add it!

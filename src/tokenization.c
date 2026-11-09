@@ -45,7 +45,7 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 		result = syntaxTree->search(syntaxTree, string);
 		i = result.index;
 		// seperate tokens based on whitespace
-		if(i > 0)
+		if(i >= 0)
 		{
 			// Only a part of the token could be matched against a keyword
 			// The other part is an identifier token (IDENT)
@@ -65,20 +65,20 @@ processToken(char * string, _LinkedStringList * tokenList, _SyntaxTree * syntaxT
 			string += i;
 			index = 0;
 		}
-//		else if(*string == ' ')
-//		{
-//			if(index > 0)
-//			{
-//				token[index] = '\0';
-//				tokenList->addNode(tokenList, token, result.type);
-//				token[0] = '\0';
-//				index = 0;
-//			}
-//			string++;
-//			continue;
-//		}
+		else if(*string == ' ')
+		{
+			if(index > 0)
+			{
+				token[index] = '\0';
+				tokenList->addNode(tokenList, token, result.type);
+				token[0] = '\0';
+				index = 0;
+			}
+			string++;
+			continue;
+		}
 		else
-		{			
+		{
 			token[index] = *string++;
 			index++;
 			if((*string == '\0') && strlen(token))
@@ -109,7 +109,7 @@ assignProcessedTokens(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree)
 				node->type = NumberToken;
 			}
 			// Check if its a keyword
-			else if(node->length > 1)
+			else
 			{
 				_SyntaxTreeSearchResult result = syntaxTree->search(syntaxTree, node->data);
 				if(result.index >= 0 && result.index == node->length)

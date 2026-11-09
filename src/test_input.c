@@ -1,14 +1,26 @@
+#include <stdio.h>
+
 #ifndef bla
 #define bla
 #endif
 
-#define X true
+#define X false
 
 #include <stdbool.h>
+
 #include <stdio.h>
 
-extern char NOWHERE;
-const static unsigned long NUMBER = 1;
+#if 8 * 8 == 64
+#endif
+#ifdef Y
+	extern char NOWHERE;
+	const static unsigned long NUMBER = 1;
+#endif
+
+#define Y
+#ifndef Y
+	extern char SOMEWHERE;
+#endif
 
 int
 main(int argc, char ** argv)

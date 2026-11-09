@@ -53,15 +53,12 @@ static char * _Qualifier[] =
 	"const", "volatile", "restrict"
 };
 
-
-
 static char * _PreprocessorIdentifiers[] =
 {
-	"include", "ifndef", "pragma", "define", "endif", 
-	"ifdef", "undef", "error", "elif", "else", "line", 
-	"if", "__LINE__", "__FILE__"
+	 "elif", "else", "line", "define", "endif", "undef", "error",
+	 "ifndef", "ifdef", "if", "#", 
+	 "include", "pragma", "__LINE__", "__FILE__"	
 };
-
 
 int assignProcessedTokens(_LinkedStringList * tokenList, _SyntaxTree * syntaxTree);
 

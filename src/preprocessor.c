@@ -54,12 +54,6 @@
 int
 preprocess(const char * filePATH, const char * outPATH)
 {
-	_SyntaxTree * syntaxTree_punctuation_and_operators = malloc(sizeof(_SyntaxTree));
-	_initSyntaxTree(syntaxTree_punctuation_and_operators);
-
-	_SyntaxTree * syntaxTree_keywords = malloc(sizeof(_SyntaxTree));
-	_initSyntaxTree(syntaxTree_keywords);
-	
 	_LinkedStringList * _FileLines = malloc(sizeof(_LinkedStringList));
 	initStringList(_FileLines);
 	
@@ -77,7 +71,7 @@ preprocess(const char * filePATH, const char * outPATH)
 	for(int i = 0; i < numberOfElements; i++) 
 	{
 		printf("%s ", _Operators[i]);
-		addSyntaxTreeNode(syntaxTree_punctuation_and_operators, _Operators[i], OperatorToken);
+		syntaxTree_punctuation_and_operators.add(&syntaxTree_punctuation_and_operators, _Operators[i], OperatorToken);
 	}
 
 	numberOfElements = sizeof(_Punctuation) / sizeof(_Punctuation[0]); 
@@ -85,7 +79,7 @@ preprocess(const char * filePATH, const char * outPATH)
 	for(int i = 0; i < numberOfElements; i++) 
 	{
 		printf("%s ", _Punctuation[i]);
-		addSyntaxTreeNode(syntaxTree_punctuation_and_operators, _Punctuation[i], PunctuationToken);
+		syntaxTree_punctuation_and_operators.add(&syntaxTree_punctuation_and_operators, _Punctuation[i], PunctuationToken);
 	}
 
 	printf("\nNumbers: 0 - 9");
@@ -95,31 +89,31 @@ preprocess(const char * filePATH, const char * outPATH)
 	for(int i = 0; i < sizeof(_ControlFlow) / sizeof(_ControlFlow[0]); i++) 
 	{
 		printf("%s ", _ControlFlow[i]);
-		addSyntaxTreeNode(syntaxTree_keywords, _ControlFlow[i], ControlFlowToken);
+		syntaxTree_keywords.add(&syntaxTree_keywords, _ControlFlow[i], ControlFlowToken);
 	}		
 	printf("\nData Types: ");
 	for(int i = 0; i < sizeof(_DataTypes) / sizeof(_DataTypes[0]); i++) 
 	{
 		printf("%s ", _DataTypes[i]);
-		addSyntaxTreeNode(syntaxTree_keywords, _DataTypes[i], DataTypeToken);
+		syntaxTree_keywords.add(&syntaxTree_keywords, _DataTypes[i], DataTypeToken);
 	}	
 	printf("\nStorage class: ");
 	for(int i = 0; i < sizeof(_StorageClass) / sizeof(_StorageClass[0]); i++) 
 	{
 		printf("%s ", _StorageClass[i]);
-		addSyntaxTreeNode(syntaxTree_keywords, _StorageClass[i], StorageClassToken);
+		syntaxTree_keywords.add(&syntaxTree_keywords, _StorageClass[i], StorageClassToken);
 	}
 	printf("\nUser defined Types: ");
 	for(int i = 0; i < sizeof(_UserDefinedTypes) / sizeof(_UserDefinedTypes[0]); i++) 
 	{
 		printf("%s ", _UserDefinedTypes[i]);
-		addSyntaxTreeNode(syntaxTree_keywords, _UserDefinedTypes[i], UserDefinedTypeToken);
+		syntaxTree_keywords.add(&syntaxTree_keywords, _UserDefinedTypes[i], UserDefinedTypeToken);
 	}	
 	printf("\nQualifiers: ");
 	for(int i = 0; i < sizeof(_Qualifier) / sizeof(_Qualifier[0]); i++) 
 	{
 		printf("%s ", _Qualifier[i]);
-		addSyntaxTreeNode(syntaxTree_keywords, _Qualifier[i], QualifierToken);
+		syntaxTree_keywords.add(&syntaxTree_keywords, _Qualifier[i], QualifierToken);
 	}	
 	numberOfElements = sizeof(_PreprocessorIdentifiers) / sizeof(_PreprocessorIdentifiers[0]); 
 	printf("\nPreprocessor identifiers: ");
@@ -133,11 +127,18 @@ preprocess(const char * filePATH, const char * outPATH)
 	_LinkedStringList * _Tokens = malloc(sizeof(_LinkedStringList));
 	initStringList(_Tokens);
 
+	// Conditional compilation --> handle preprocessor directives
+
 	// tokenization
-	tokenization(_FileLines, _Tokens, syntaxTree_punctuation_and_operators);
-	assignProcessedTokens(_Tokens, syntaxTree_keywords);
+	tokenization(_FileLines, _Tokens, &syntaxTree_punctuation_and_operators);
+
+	// The preprocessor does not know anything about data types
+	// however, it can do arithmatic and comparison
+	handlePreprocessorDirectives(_Tokens, _SymbolTable);	
 	
-//	handlePreprocessorDirectives(_FileLines, syntaxTree, _SymbolTable);
+	// Match tokens with C language keywords
+	assignProcessedTokens(_Tokens, &syntaxTree_keywords);
+	
 //	expandIncludes(&_FileLines);
 	
 	_Tokens->print(_Tokens, false);
